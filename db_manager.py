@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import time # Useremo il timestamp Unix (REALE in SQLite) per le date
+from datetime import datetime, timedelta # Useremo timedelta per calcolare la data futura
 
 # Definiamo il nome del file del database
 DB_NAME = 'chess_tutor.db'
@@ -168,3 +169,160 @@ if __name__ == '__main__':
     else:
         print("Nessun problema pronto per la revisione.")
 
+# Costanti iniziali per l'algoritmo SM-2
+INITIAL_EASE_FACTOR = 2.5
+FIRST_INTERVAL = 1
+SECOND_INTERVAL = 6
+# I punteggi di qualità (q)
+Q_WRONG = 0 # Sbagliato (e reset)
+Q_DIFFICULT = 3
+Q_MEDIUM = 4
+Q_EASY = 5
+
+def calculate_sm2(quality_rating: int, current_ease_factor: float, current_interval: int, review_count: int) -> tuple[int, float, int]:
+    """
+    Calcola il nuovo intervallo, il nuovo fattore di facilità e il nuovo conteggio
+    secondo l'algoritmo SuperMemo-2.
+    """
+    
+    new_ease_factor = current_ease_factor + (0.1 - (5 - quality_rating) * (0.08 + (5 - quality_rating) * 0.02))
+    new_ease_factor = max(1.3, new_ease_factor) # E' non può essere inferiore a 1.3
+    
+    new_review_count = review_count
+
+    if quality_rating < 3:
+        # Se l'utente sbaglia, l'intervallo viene resettato e il contatore azzerato.
+        new_interval = 0
+        new_review_count = 0
+    else:
+        # Risposta corretta (q >= 3)
+        if review_count == 0:
+            new_interval = FIRST_INTERVAL  # 1 giorno
+        elif review_count == 1:
+            new_interval = SECOND_INTERVAL # 6 giorni
+        else:
+            # I' = I * E' (arrotondato)
+            new_interval = round(current_interval * new_ease_factor)
+        
+        # Incrementiamo il contatore solo per le risposte corrette
+        new_review_count += 1
+
+    return new_interval, new_ease_factor, new_review_count
+
+# ----------------------------------------------------------------------
+# NUOVA FUNZIONE PER L'AGGIORNAMENTO
+# ----------------------------------------------------------------------
+
+def update_problem_review(problem_id: int, user_rating_key: str) -> bool:
+    """
+    Aggiorna i parametri SM-2 per un problema specifico dopo la revisione dell'utente.
+
+    :param problem_id: L'ID del problema da aggiornare.
+    :param user_rating_key: La valutazione dell'utente ('Sbagliato', 'Difficile', 'Medio', 'Facile').
+    :return: True se l'aggiornamento ha avuto successo, False altrimenti.
+    """
+    conn = create_connection()
+    if conn is None:
+        return False
+    
+    # Mappiamo il feedback dell'utente al punteggio di qualità (q)
+    RATING_MAP = {
+        'Sbagliato': Q_WRONG,
+        'Difficile': Q_DIFFICULT,
+        'Medio': Q_MEDIUM,
+        'Facile': Q_EASY
+    }
+    quality_rating = RATING_MAP.get(user_rating_key, Q_WRONG) # Usa 0 se la chiave non è valida
+
+    # 1. Recupera i dati correnti del problema dal DB
+    fetch_sql = "SELECT ease_factor, interval_days, review_count FROM problems WHERE id = ?"
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute(fetch_sql, (problem_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            print(f"Errore: Problema con ID {problem_id} non trovato.")
+            return False
+            
+        current_data = dict(row)
+        
+        # 2. Calcola i nuovi parametri SM-2
+        new_interval, new_ease_factor, new_review_count = calculate_sm2(
+            quality_rating,
+            current_data['ease_factor'],
+            current_data['interval_days'],
+            current_data['review_count']
+        )
+        
+        # 3. Calcola la prossima data di revisione (next_review)
+        # Convertiamo l'intervallo in secondi e lo aggiungiamo al tempo corrente
+        current_time = datetime.now()
+        # Se l'intervallo è 0 (Sbagliato), lo impostiamo al giorno successivo per riproporre
+        # il problema velocemente, o manteniamo l'intervallo calcolato.
+        
+        if new_interval == 0:
+             # Ri-proponi il problema il giorno stesso o il giorno dopo (qui lo teniamo subito pronto)
+             next_review_datetime = current_time 
+        else:
+             next_review_datetime = current_time + timedelta(days=new_interval)
+             
+        # Convertiamo la prossima data di revisione in timestamp Unix
+        next_review_timestamp = next_review_datetime.timestamp()
+        
+        # 4. Aggiorna il DB
+        update_sql = """
+        UPDATE problems 
+        SET 
+            last_reviewed = ?, 
+            next_review = ?, 
+            ease_factor = ?, 
+            interval_days = ?, 
+            review_count = ?
+        WHERE id = ?
+        """
+        
+        update_params = (
+            current_time.timestamp(),  # last_reviewed (ora)
+            next_review_timestamp,     # next_review (la data calcolata)
+            new_ease_factor,
+            new_interval,
+            new_review_count,
+            problem_id
+        )
+        
+        cursor.execute(update_sql, update_params)
+        conn.commit()
+        return True
+        
+    except sqlite3.Error as e:
+        print(f"Errore durante l'aggiornamento del problema: {e}")
+        return False
+    finally:
+        conn.close()
+
+# --- Esempio di Utilizzo della Funzione ---
+
+if __name__ == '__main__':
+    # Assumiamo che il problema con ID 1 esista (se hai eseguito l'esempio precedente)
+    test_id = 1
+    
+    print(f"\n--- Aggiornamento Problema ID {test_id} ---")
+    
+    # Simula la prima revisione: Utente risponde 'Medio'
+    success = update_problem_review(test_id, 'Medio')
+    
+    if success:
+        print("Aggiornamento 1 (Medio) riuscito.")
+        # Simula la seconda revisione (dopo 1 giorno): Utente risponde 'Facile'
+        # Nota: L'intervallo calcolato sarà basato sul nuovo 'ease_factor'
+        success_2 = update_problem_review(test_id, 'Facile')
+        if success_2:
+            print("Aggiornamento 2 (Facile) riuscito.")
+            print("Controlla il DB per i valori aggiornati (next_review, ease_factor).")
+        
+        # Simula una revisione fallita: Utente risponde 'Sbagliato'
+        success_fail = update_problem_review(test_id, 'Sbagliato')
+        if success_fail:
+            print("Aggiornamento 3 (Sbagliato) riuscito. Il problema è pronto per la riproposta immediata.")
