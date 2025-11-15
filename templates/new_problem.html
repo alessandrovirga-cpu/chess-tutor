@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Aggiungi Problema</title>
+</head>
+<body>
+    <h1>Inserisci un Nuovo Problema Scacchistico</h1>
+    <form method="POST">
+        <label for="fen">FEN della Posizione Iniziale:</label><br>
+        <input type="text" id="fen" name="fen" required size="60"><br><br>
+        
+        <label for="solution">Soluzione (Mosse separate da virgola, es: Nf3, Nc6):</label><br>
+        <input type="text" id="solution" name="solution" required size="60"><br><br>
+        
+        <label for="tags">Tag (Temi tattici separati da virgola, es: matto in 2, inchiodatura):</label><br>
+        <input type="text" id="tags" name="tags" size="60"><br><br>
+        
+        <button type="submit">Salva Problema</button>
+    </form>
+    <p><a href="{{ url_for('index') }}">Torna alla Dashboard</a></p>
+</body>
+</html>

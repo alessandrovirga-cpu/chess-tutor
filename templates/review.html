@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Revisione Problema ID: {{ problem.id }}</title>
+    </head>
+<body>
+    <h1>Problema Scacchistico: {{ problem.id }}</h1>
+    
+    <p><strong>Posizione FEN:</strong> {{ problem.fen }}</p>
+    <p><strong>Tags:</strong> {{ problem.tags|join(', ') }}</p>
+
+    <details>
+        <summary>Mostra Soluzione (Se ti arrendi)</summary>
+        <p><strong>Soluzione:</strong> {{ problem.solution_moves|join(' -> ') }}</p>
+    </details>
+    
+    <hr>
+    
+    <h2>Valuta la tua risposta:</h2>
+    <form method="POST" action="{{ url_for('rate_problem', problem_id=problem.id) }}">
+        <button type="submit" name="rating" value="Sbagliato">Sbagliato (0)</button>
+        <button type="submit" name="rating" value="Difficile">Difficile (3)</button>
+        <button type="submit" name="rating" value="Medio">Medio (4)</button>
+        <button type="submit" name="rating" value="Facile">Facile (5)</button>
+    </form>
+
+    <p><small>La tua valutazione aggiornerà l'intervallo di ripetizione SM-2.</small></p>
+    <p><a href="{{ url_for('index') }}">Torna alla Dashboard</a></p>
+</body>
+</html>

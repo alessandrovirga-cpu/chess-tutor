@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Tutor Scacchistico SM-2</title>
+</head>
+<body>
+    <h1>Dashboard Ripetizione Spaziata</h1>
+    <p>Problemi pronti per la revisione: <strong>{{ num_ready }}</strong></p>
+
+    {% if num_ready > 0 %}
+        <p><a href="{{ url_for('review_problem') }}">INIZIA LA REVISIONE</a></p>
+    {% else %}
+        <p>Non ci sono problemi pronti. Torna più tardi! 😊</p>
+    {% endif %}
+    
+    <hr>
+    <p><a href="{{ url_for('new_problem') }}">Aggiungi un nuovo problema</a></p>
+</body>
+</html>
