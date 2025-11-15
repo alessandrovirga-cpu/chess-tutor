@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for
-import db_manager
+import db_manager, db_setup
 import time
 
 # --- Setup di Flask ---
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # Assicurati che il database esista all'avvio
     conn = db_manager.create_connection()
     if conn:
-        db_manager.setup_database(conn)
+        db_setup.setup_database(conn)
         conn.close()
     
     # Avvia il server Flask in modalità debug

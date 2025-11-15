@@ -87,7 +87,7 @@ if __name__ == '__main__':
     # esegui prima la funzione di setup da db_setup.py.
     
     # Dati di esempio (Matto in uno)
-    example_fen = "8/8/8/8/8/3R4/8/3K2R1 w - - 0 1"
+    example_fen = "3R4/8/8/8/8/3R4/8/3K2R1 w - - 0 1"
     example_solution = ["Rg8#"]
     example_tags = ["matto in 1", "sacrificio", "tattica base"]
     
