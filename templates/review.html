@@ -7,12 +7,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chessboard-1.0.0.css') }}">
     <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chessboard-1.0.0.js') }}"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.js"></script>
+    <script src="{{ url_for('static', filename='js/chess.js') }}"></script>
     
     <style>
-        /* Stile per centrare la scacchiera e definirne la dimensione massima */
         .board-container {
-            width: 400px; /* Dimensioni tipiche per dispositivi mobili */
+            width: 400px;
             margin: 20px auto;
         }
     </style>
@@ -43,66 +42,73 @@
     </div>
 
     <script>
-        // Il FEN della posizione iniziale
         var problemFEN = "{{ problem.fen }}";
-        // La soluzione (lista di mosse, es: ['Nf3', 'e5'])
         var solutionMoves = {{ problem.solution_moves|tojson }}; 
         
-        // Inizializza la logica scacchistica
-        var game = new Chess(problemFEN);
-        // Inizializza la scacchiera grafica
-        var board = null;
+        // Verifica se Chess è stato caricato correttamente
+        if (typeof Chess === 'undefined') {
+            alert("Errore critico: La libreria chess.js non è stata caricata. Controlla la connessione internet.");
+        }
 
-        // Indice della mossa che l'utente deve ancora fare
+        var game = new Chess(problemFEN);
+        var board = null;
         var currentMoveIndex = 0;
-        // La scacchiera è in modalità di risoluzione
         var isSolving = true;
         
-        // Funzione per la gestione delle mosse dell'utente sulla scacchiera
         function onDrop (source, target) {
-            if (!isSolving) {
-                return 'snapback'; // Non permettere mosse se la soluzione è già stata mostrata
-            }
+            if (!isSolving) return 'snapback'; 
             
-            // Prova a creare la mossa (es. 'e2e4')
             var move = game.move({
                 from: source,
                 to: target,
-                promotion: 'q' // Assumiamo promozione a regina per semplicità
+                promotion: 'q'
             });
             
-            // mossa non legale
             if (move === null) return 'snapback'; 
 
-            // Se la mossa è legale, controlla se è la mossa corretta della soluzione
             var correctMove = solutionMoves[currentMoveIndex];
             
-            if (move.san === correctMove) { // SAN: Standard Algebraic Notation (es. Nf3)
-                currentMoveIndex++;
-                updateStatus();
+            if (move.san === correctMove) {
+                currentMoveIndex++; 
+                updateStatus();     
                 
-                // Se tutte le mosse della soluzione sono state completate
                 if (currentMoveIndex >= solutionMoves.length) {
-                    $('#status-message').html('**Risolto!** Ora puoi valutare la tua performance.');
-                    isSolving = false; // Blocca ulteriori mosse
-                    $('#rateWrongButton').prop('disabled', true); // Non può essere 'Sbagliato' se ha risolto
-                    return; // Mossa corretta, non c'è bisogno di snapback
+                    $('#status-message').html('<strong>Risolto!</strong> Ottimo lavoro. Valuta la difficoltà:');
+                    isSolving = false; 
+                    $('#rateWrongButton').prop('disabled', true); 
+                } else {
+                    setTimeout(makeComputerMove, 500);
                 }
+                
             } else {
-                // Mossa legale ma ERRATA per la soluzione
-                game.undo(); // Annulla la mossa
-                $('#status-message').html('<span style="color: red;">Mossa errata. Riprova.</span>');
-                return 'snapback'; // Riporta il pezzo alla posizione iniziale
+                game.undo(); 
+                $('#status-message').html('<span style="color: red;">Mossa errata! Riprova.</span>');
+                return 'snapback'; 
             }
         };
 
-        // Aggiorna lo stato della partita e i bottoni
+        function makeComputerMove() {
+            if (currentMoveIndex >= solutionMoves.length) return;
+
+            var nextMoveSan = solutionMoves[currentMoveIndex];
+            game.move(nextMoveSan);
+            board.position(game.fen());
+
+            currentMoveIndex++;
+            updateStatus();
+        
+            if (currentMoveIndex >= solutionMoves.length) {
+                $('#status-message').html('<strong>Risolto!</strong> (Sull\'ultima mossa avversaria).');
+                isSolving = false;
+                $('#rateWrongButton').prop('disabled', true);
+            }
+        }
+
         function updateStatus () {
             var moveColor = 'Bianco';
             if (game.turn() === 'b') {
                 moveColor = 'Nero';
             }
-            
             var status = 'Tocca a ' + moveColor + ' muovere.';
             if (currentMoveIndex > 0) {
                 status += ' Mossa ' + (currentMoveIndex + 1) + ' di ' + solutionMoves.length + '.';
@@ -110,7 +116,6 @@
             $('#status-message').html(status);
         };
 
-        // Funzione per resettare il problema (per riprovare dopo aver visto la soluzione)
         function resetProblem() {
             game.load(problemFEN);
             board.position(problemFEN);
@@ -120,41 +125,31 @@
             $('#solveButton').show();
             $('#resetButton').hide();
             $('#ratingForm button').prop('disabled', false);
-            $('#rateWrongButton').prop('disabled', false); // Riabilita Sbagliato
+            $('#rateWrongButton').prop('disabled', false); 
         }
 
-        // Gestione del pulsante "Mostra Soluzione / Arrenditi"
         $('#solveButton').on('click', function() {
             isSolving = false;
             $('#status-message').html('**Arreso/Soluzione Mostrata!** Premi Sbagliato e Riprova.');
             $('#solveButton').hide();
             $('#resetButton').show();
-            
-            // Simula il fallimento: Disabilita i pulsanti di successo
             $('#rateCorrectButton, #rateMediumButton, #rateEasyButton').prop('disabled', true); 
-            
-            // Se l'utente si arrende, deve premere Sbagliato (0) per resettare l'intervallo
-            // Reindirizziamo l'utente a un passo indietro (undo)
-            // L'utente deve inviare il form 'Sbagliato' manualmente.
         });
         
         $('#resetButton').on('click', resetProblem);
 
-        // Configurazione della scacchiera
+        // CONFIGURAZIONE SCACCHIERA (Correzione Immagini applicata)
         var config = {
             draggable: true,
             position: problemFEN,
             onDrop: onDrop,
-            sparePieces: false, // Non mostrare pezzi extra
+            sparePieces: false,
+            // Qui concateniamo la stringa JS, risolvendo il problema del 404
             pieceTheme: '{{ url_for("static", filename="img/chesspieces/wikipedia/") }}' + '{piece}.png'
         };
 
-        // Inizializza la scacchiera
         board = Chessboard('board', config);
-        
-        // Aggiorna lo stato iniziale
         updateStatus();
-        
     </script>
 </body>
 </html>
