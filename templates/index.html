@@ -15,6 +15,17 @@
     {% endif %}
     
     <hr>
-    <p><a href="{{ url_for('new_problem') }}">Aggiungi un nuovo problema</a></p>
+    <p>Scegli come vuoi inserire un nuovo problema:</p>
+    <ul>
+        <li>
+            <a href="{{ url_for('new_problem') }}"><strong>Inserimento Testuale (FEN)</strong></a>
+            <br><small>Ideale se hai già la stringa FEN da copiare/incollare.</small>
+        </li>
+        <br>
+        <li>
+            <a href="{{ url_for('new_problem_graphical') }}"><strong>Inserimento Grafico (Scacchiera)</strong></a>
+            <br><small>Costruisci la posizione trascinando i pezzi sulla scacchiera.</small>
+        </li>
+    </ul>
 </body>
 </html>

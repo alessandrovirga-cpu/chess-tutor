@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Editor Grafico Scacchi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chessboard-1.0.0.css') }}">
+    <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chessboard-1.0.0.js') }}"></script>
+    <style>
+        .editor-container {
+            width: 600px;
+            margin: 20px auto;
+            display: flex;
+            gap: 20px;
+        }
+        .board-section { width: 400px; }
+        .controls-section { width: 200px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="text"] { width: 100%; box-sizing: border-box; }
+        textarea { width: 100%; height: 60px; box-sizing: border-box; }
+        button { margin-top: 20px; padding: 10px; width: 100%; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Crea Problema (Editor Grafico)</h1>
+    
+    <form id="problemForm" method="POST">
+        <div class="editor-container">
+            
+            <div class="board-section">
+                <div id="board" style="width: 100%"></div>
+                <p><small>Trascina i pezzi dalla tavolozza laterale o fuori per eliminarli.</small></p>
+                <button type="button" id="clearBtn">Svuota Scacchiera</button>
+                <button type="button" id="startBtn">Posizione Iniziale</button>
+            </div>
+
+            <div class="controls-section">
+                <label>Chi muove per primo?</label>
+                <input type="radio" id="moveWhite" name="turn" value="w" checked>
+                <label for="moveWhite" style="display:inline; font-weight:normal;">Bianco</label>
+                <br>
+                <input type="radio" id="moveBlack" name="turn" value="b">
+                <label for="moveBlack" style="display:inline; font-weight:normal;">Nero</label>
+
+                <label for="solution">Soluzione (es. Re8#):</label>
+                <input type="text" id="solution" name="solution" required placeholder="Inserisci mosse...">
+
+                <label for="tags">Tags:</label>
+                <textarea id="tags" name="tags" placeholder="Matto in 1, Finale..."></textarea>
+
+                <input type="hidden" id="fen" name="fen">
+
+                <hr>
+                <button type="submit" id="saveBtn">Salva Problema</button>
+                <br><br>
+                <a href="{{ url_for('index') }}">Annulla</a>
+            </div>
+        </div>
+    </form>
+
+    <script>
+        // Configurazione Scacchiera Editabile
+        var config = {
+            draggable: true,
+            dropOffBoard: 'trash', // Elimina pezzi trascinati fuori
+            sparePieces: true,     // Mostra i pezzi laterali (Palette)
+            position: 'start',     // Inizia con la posizione standard (puoi mettere 'empty')
+            // Fix per le immagini (lo stesso di review.html)
+            pieceTheme: '{{ url_for("static", filename="img/chesspieces/wikipedia/") }}' + '{piece}.png'
+        };
+
+        var board = Chessboard('board', config);
+
+        // Pulsanti di utilità
+        $('#clearBtn').on('click', board.clear);
+        $('#startBtn').on('click', board.start);
+
+        // --- LOGICA DI SALVATAGGIO ---
+        // Quando l'utente preme "Salva", calcoliamo il FEN e lo mettiamo nell'input nascosto
+        $('#problemForm').on('submit', function(e) {
+            
+            // 1. Ottieni la posizione dei pezzi dalla scacchiera (es. rnbqk...)
+            var positionFen = board.fen();
+            
+            // 2. Ottieni chi deve muovere (w o b)
+            var turn = $('input[name="turn"]:checked').val();
+            
+            // 3. Costruisci il FEN completo
+            // Nota: Aggiungiamo "- - 0 1" come valori di default per arrocco/en-passant/mosse
+            // per rendere la stringa valida per chess.js.
+            // Se volessimo essere precisi, dovremmo aggiungere controlli per l'arrocco, 
+            // ma per gli esercizi tattici spesso questo default è sufficiente.
+            var fullFen = positionFen + " " + turn + " - - 0 1";
+            
+            // 4. Inserisci nel campo nascosto
+            $('#fen').val(fullFen);
+
+            // Il form ora prosegue con l'invio al server...
+        });
+    </script>
+</body>
+</html>

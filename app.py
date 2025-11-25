@@ -92,6 +92,32 @@ def rate_problem(problem_id):
     return "Valutazione non valida o problema non aggiornato.", 400
 
 
+# --- Rotta 5: Inserimento Grafico ---
+@app.route('/new_graphical', methods=['GET', 'POST'])
+def new_problem_graphical():
+    """
+    Gestisce l'editor grafico per la creazione di problemi.
+    """
+    if request.method == 'POST':
+        # 1. Recupera i dati costruiti dal form (Il FEN sarà calcolato dal JS)
+        fen = request.form.get('fen')
+        solution_str = request.form.get('solution')
+        tags_str = request.form.get('tags')
+
+        solution_list = [m.strip() for m in solution_str.split(',') if m.strip()]
+        tags_list = [t.strip() for t in tags_str.split(',') if t.strip()]
+
+        if fen and solution_list:
+            # Salviamo nel DB usando la stessa funzione di prima
+            new_id = db_manager.insert_new_problem(fen, solution_list, tags_list)
+            if new_id:
+                return redirect(url_for('index'))
+        
+        return "Errore: Dati mancanti.", 400
+
+    return render_template('new_graphical.html')
+
+
 # --- Esecuzione dell'App ---
 if __name__ == '__main__':
     # Assicurati che il database esista all'avvio
