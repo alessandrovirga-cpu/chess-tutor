@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Elenco Problemi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chessboard-1.0.0.css') }}">
+    <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chessboard-1.0.0.js') }}"></script>
+    <style>
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }
+        th { background-color: #f2f2f2; }
+        .mini-board { width: 150px; margin: 0 auto; } /* Dimensione fissa per le mini scacchiere */
+    </style>
+</head>
+<body>
+    <h1>Database Problemi ({{ problems|length }} totali)</h1>
+    <p><a href="{{ url_for('index') }}">Torna alla Home</a></p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Posizione</th>
+                <th>Ultima Ripetizione</th>
+                <th>Stato SM-2</th>
+                <th>Ripetizioni</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in problems %}
+            <tr>
+                <td>
+                    <div id="board_{{ p.id }}" class="mini-board"></div>
+                    <small style="font-size: 10px; color: grey;">ID: {{ p.id }}</small>
+                </td>
+                
+                <td>
+                    {{ p.last_reviewed | format_date }}
+                </td>
+                
+                <td>
+                    <strong>Difficoltà (EF):</strong> {{ "%.2f"|format(p.ease_factor) }}<br>
+                    <small>
+                        {% if p.ease_factor >= 2.6 %} <span style="color:green">Molto Facile</span>
+                        {% elif p.ease_factor >= 2.3 %} <span style="color:blue">Facile</span>
+                        {% elif p.ease_factor >= 1.5 %} <span style="color:orange">Medio</span>
+                        {% else %} <span style="color:red">Difficile</span>
+                        {% endif %}
+                    </small>
+                    <br>
+                    <br>
+                    <strong>Intervallo:</strong> {{ p.interval_days }} giorni
+                </td>
+                
+                <td>
+                    {{ p.review_count }} volte
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        // Script per inizializzare TUTTE le scacchiere
+        // Cicliamo su tutti i problemi passati da Flask e creiamo le board
+        
+        var config = {
+            showNotation: false, // Nascondi coordinate per pulizia
+            draggable: false,    // Solo visualizzazione
+            pieceTheme: '{{ url_for("static", filename="img/chesspieces/wikipedia/") }}' + '{piece}.png'
+        };
+
+        {% for p in problems %}
+            // Crea una scacchiera per l'ID specifico
+            var board_{{ p.id }} = Chessboard('board_{{ p.id }}', {
+                ...config, 
+                position: '{{ p.fen }}'
+            });
+        {% endfor %}
+    </script>
+</body>
+</html>

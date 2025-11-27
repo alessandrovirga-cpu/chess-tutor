@@ -302,6 +302,37 @@ def update_problem_review(problem_id: int, user_rating_key: str) -> bool:
     finally:
         conn.close()
 
+
+def get_all_problems():
+    """
+    Recupera TUTTI i problemi dal database per l'elenco riepilogativo.
+    """
+    conn = create_connection()
+    if conn is None:
+        return []
+
+    sql = "SELECT * FROM problems ORDER BY id DESC" # Mostra i più recenti per primi
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        
+        problems = []
+        for row in rows:
+            p = dict(row)
+            # Decodifica JSON se necessario, altrimenti lascia come stringa per la visualizzazione
+            # Qui ci serve il FEN pulito per la scacchiera
+            problems.append(p)
+            
+        return problems
+    except sqlite3.Error as e:
+        print(f"Errore nel recupero di tutti i problemi: {e}")
+        return []
+    finally:
+        conn.close()
+
+
 # --- Esempio di Utilizzo della Funzione ---
 
 if __name__ == '__main__':
@@ -326,3 +357,5 @@ if __name__ == '__main__':
         success_fail = update_problem_review(test_id, 'Sbagliato')
         if success_fail:
             print("Aggiornamento 3 (Sbagliato) riuscito. Il problema è pronto per la riproposta immediata.")
+
+

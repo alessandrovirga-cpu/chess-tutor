@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for
 import db_manager, db_setup
 import time
+from datetime import datetime
 
 # --- Setup di Flask ---
 app = Flask(__name__)
@@ -116,6 +117,20 @@ def new_problem_graphical():
         return "Errore: Dati mancanti.", 400
 
     return render_template('new_graphical.html')
+
+
+# Funzione helper per formattare la data nel template (opzionale, ma utile)
+@app.template_filter('format_date')
+def format_date(timestamp):
+    if timestamp:
+        return datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M')
+    return "Mai"
+
+# --- Rotta 6: Elenco di Tutti i Problemi ---
+@app.route('/list')
+def problems_list():
+    all_problems = db_manager.get_all_problems()
+    return render_template('problems_list.html', problems=all_problems)
 
 
 # --- Esecuzione dell'App ---
