@@ -6,97 +6,257 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chessboard-1.0.0.css') }}">
     <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chessboard-1.0.0.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chess.js') }}"></script>
+    
     <style>
         .editor-container {
-            width: 600px;
+            width: 800px;
             margin: 20px auto;
             display: flex;
-            gap: 20px;
+            gap: 30px;
         }
-        .board-section { width: 400px; }
-        .controls-section { width: 200px; }
-        label { display: block; margin-top: 10px; font-weight: bold; }
-        input[type="text"] { width: 100%; box-sizing: border-box; }
-        textarea { width: 100%; height: 60px; box-sizing: border-box; }
-        button { margin-top: 20px; padding: 10px; width: 100%; cursor: pointer; }
+        .board-section { width: 450px; }
+        .controls-section { flex: 1; }
+        label { display: block; margin-top: 15px; font-weight: bold; }
+        input[type="text"], textarea { width: 100%; box-sizing: border-box; padding: 8px; }
+        textarea { height: 60px; }
+        
+        .btn { margin-top: 10px; padding: 10px; width: 100%; cursor: pointer; font-size: 14px; }
+        .btn-primary { background-color: #4CAF50; color: white; border: none; font-weight: bold; }
+        .btn-danger { background-color: #f44336; color: white; border: none; }
+        .btn-secondary { background-color: #e7e7e7; border: 1px solid #ccc; }
+
+        .phase-indicator {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #e3f2fd;
+            border-left: 5px solid #2196F3;
+        }
+        
+        /* Nascondiamo sezioni in base allo stato */
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <h1 style="text-align: center;">Crea Problema (Editor Grafico)</h1>
+    <h1 style="text-align: center;">Crea Problema</h1>
     
-    <form id="problemForm" method="POST">
+    <form id="problemForm" method="POST" action="{{ url_for('new_problem_graphical') }}">
         <div class="editor-container">
             
             <div class="board-section">
+                <div id="msgPhase1" class="phase-indicator">
+                    <strong>Fase 1: Setup</strong><br>Trascina i pezzi per creare la posizione iniziale.
+                </div>
+                <div id="msgPhase2" class="phase-indicator hidden" style="background-color: #e8f5e9; border-color: #4CAF50;">
+                    <strong>Fase 2: Registrazione</strong><br>Muovi i pezzi sulla scacchiera per registrare la soluzione.
+                </div>
+
                 <div id="board" style="width: 100%"></div>
-                <p><small>Trascina i pezzi dalla tavolozza laterale o fuori per eliminarli.</small></p>
-                <button type="button" id="clearBtn">Svuota Scacchiera</button>
-                <button type="button" id="startBtn">Posizione Iniziale</button>
+                
+                <div id="controlsPhase1">
+                    <button type="button" class="btn btn-secondary" id="clearBtn">Svuota Scacchiera</button>
+                    <button type="button" class="btn btn-secondary" id="startBtn">Posizione Iniziale</button>
+                    <br><br>
+                    <label>Chi muove per primo?</label>
+                    <input type="radio" id="moveWhite" name="turn" value="w" checked> Bianco
+                    <input type="radio" id="moveBlack" name="turn" value="b"> Nero
+                    <br>
+                    <button type="button" class="btn btn-primary" id="btnGoToRecord">✅ Conferma Posizione & Registra Mosse</button>
+                </div>
+
+                <div id="controlsPhase2" class="hidden">
+                    <button type="button" class="btn btn-danger" id="btnBackToSetup">⬅ Modifica Posizione Iniziale</button>
+                    <button type="button" class="btn btn-secondary" id="btnUndoMove">Annulla Ultima Mossa</button>
+                </div>
             </div>
 
             <div class="controls-section">
-                <label>Chi muove per primo?</label>
-                <input type="radio" id="moveWhite" name="turn" value="w" checked>
-                <label for="moveWhite" style="display:inline; font-weight:normal;">Bianco</label>
-                <br>
-                <input type="radio" id="moveBlack" name="turn" value="b">
-                <label for="moveBlack" style="display:inline; font-weight:normal;">Nero</label>
-
-                <label for="solution">Soluzione (es. Re8#):</label>
-                <input type="text" id="solution" name="solution" required placeholder="Inserisci mosse...">
-
+                
+                <label for="solution">Soluzione Registrata:</label>
+                <input type="text" id="solution" name="solution" required readonly 
+                       placeholder="Fai le mosse sulla scacchiera..." style="background-color: #f9f9f9;">
+                
                 <label for="tags">Tags:</label>
-                <textarea id="tags" name="tags" placeholder="Matto in 1, Finale..."></textarea>
+                <textarea id="tags" name="tags" placeholder="Es: Matto in 2, Forchetta..."></textarea>
 
                 <input type="hidden" id="fen" name="fen">
 
                 <hr>
-                <button type="submit" id="saveBtn">Salva Problema</button>
-                <br><br>
-                <a href="{{ url_for('index') }}">Annulla</a>
+                <button type="submit" class="btn btn-primary" id="saveBtn" disabled>💾 Salva Problema nel DB</button>
+                <br>
+                <a href="{{ url_for('index') }}" style="display:block; text-align:center; margin-top:10px;">Annulla</a>
             </div>
         </div>
     </form>
 
     <script>
-        // Configurazione Scacchiera Editabile
-        var config = {
-            draggable: true,
-            dropOffBoard: 'trash', // Elimina pezzi trascinati fuori
-            sparePieces: true,     // Mostra i pezzi laterali (Palette)
-            position: 'start',     // Inizia con la posizione standard (puoi mettere 'empty')
-            // Fix per le immagini (lo stesso di review.html)
-            pieceTheme: '{{ url_for("static", filename="img/chesspieces/wikipedia/") }}' + '{piece}.png'
-        };
+        // --- VARIABILI GLOBALI ---
+        var board = null;
+        var game = new Chess(); // Motore logico per la validazione
+        var recordedMoves = []; // Lista delle mosse registrate
+        var startFen = "";      // FEN della posizione iniziale (congelata)
+        
+        // Configurazione per le immagini
+        var pieceThemePath = '{{ url_for("static", filename="img/chesspieces/wikipedia/") }}' + '{piece}.png';
 
-        var board = Chessboard('board', config);
+        // --- INIZIALIZZAZIONE FASE 1: EDITOR ---
+        function initSetupBoard() {
+            var config = {
+                draggable: true,
+                dropOffBoard: 'trash',
+                sparePieces: true,
+                position: 'start',
+                pieceTheme: pieceThemePath
+            };
+            board = Chessboard('board', config);
+        }
 
-        // Pulsanti di utilità
+        // Avviamo con l'editor
+        initSetupBoard();
+
+        // Pulsanti Setup
         $('#clearBtn').on('click', board.clear);
         $('#startBtn').on('click', board.start);
 
-        // --- LOGICA DI SALVATAGGIO ---
-        // Quando l'utente preme "Salva", calcoliamo il FEN e lo mettiamo nell'input nascosto
-        $('#problemForm').on('submit', function(e) {
-            
-            // 1. Ottieni la posizione dei pezzi dalla scacchiera (es. rnbqk...)
-            var positionFen = board.fen();
-            
-            // 2. Ottieni chi deve muovere (w o b)
+
+        // --- TRANSIZIONE: DA SETUP A REGISTRAZIONE ---
+        $('#btnGoToRecord').on('click', function() {
+            // 1. Catturiamo la posizione attuale e il turno
+            var positionObj = board.position();
             var turn = $('input[name="turn"]:checked').val();
             
-            // 3. Costruisci il FEN completo
-            // Nota: Aggiungiamo "- - 0 1" come valori di default per arrocco/en-passant/mosse
-            // per rendere la stringa valida per chess.js.
-            // Se volessimo essere precisi, dovremmo aggiungere controlli per l'arrocco, 
-            // ma per gli esercizi tattici spesso questo default è sufficiente.
-            var fullFen = positionFen + " " + turn + " - - 0 1";
+            // Convertiamo la posizione grafica in FEN parziale
+            // (Chessboard.js restituisce obj, dobbiamo convertirlo, ma board.fen() ci dà la stringa)
+            var positionFen = board.fen(); 
             
-            // 4. Inserisci nel campo nascosto
-            $('#fen').val(fullFen);
+            // Costruiamo un FEN completo per chess.js
+            // Aggiungiamo "- - 0 1" per arrocco/en-passant/mosse (default)
+            var candidateFen = positionFen + " " + turn + " KQkq - 0 1"; 
+            
+            // 2. VALIDAZIONE CON CHESS.JS
+            var validationResult = game.load(candidateFen);
+            
+            if (!validationResult) {
+                // Se chess.js non riesce a caricare il FEN, c'è un errore grave (es. mancano i Re)
+                alert("ERRORE: La posizione non è valida!\n\nVerifica che:\n1. Ci siano sia il Re Bianco che il Re Nero.\n2. Non ci siano pedoni nell'ultima traversa.");
+                return; // Blocca tutto, resta in Fase 1
+            }
 
-            // Il form ora prosegue con l'invio al server...
+            // Controllo extra: è scacco al re che deve muovere? (Spesso illegale nei puzzle se si deve muovere per primi)
+            // Ma per i puzzle tattici, a volte inizi sotto scacco. Lasciamo passare, ma avvisiamo se è matto.
+            if (game.in_checkmate()) {
+                alert("Attenzione: In questa posizione è già Scacco Matto!");
+            }
+
+            // 3. SE VALIDO: Blocchiamo la posizione iniziale
+            startFen = candidateFen;
+            $('#fen').val(startFen); // Riempiamo l'input nascosto per il salvataggio
+            
+            // 4. Passiamo alla Fase 2 (Grafica e Logica)
+            enterRecordingMode();
         });
+
+
+        // --- FASE 2: REGISTRAZIONE MOSSE ---
+        function enterRecordingMode() {
+            // Nascondi controlli Fase 1, Mostra Fase 2
+            $('#controlsPhase1').addClass('hidden');
+            $('#msgPhase1').addClass('hidden');
+            $('#controlsPhase2').removeClass('hidden');
+            $('#msgPhase2').removeClass('hidden');
+            
+            // Abilita il tasto Salva (solo se c'è almeno una mossa, vedremo dopo)
+            // Ricreiamo la scacchiera in modalità "Play" (no spare pieces, solo mosse legali)
+            board.destroy(); // Distruggiamo la vecchia board editor
+            
+            var config = {
+                draggable: true,
+                position: startFen,
+                onDragStart: onDragStart, // Controlla chi può muovere
+                onDrop: onDrop,           // Gestisce la mossa e la registrazione
+                pieceTheme: pieceThemePath
+            };
+            board = Chessboard('board', config);
+            
+            // Resettiamo le mosse registrate
+            recordedMoves = [];
+            updateSolutionInput();
+        }
+
+        // Funzioni di supporto per la scacchiera "Giocabile"
+        function onDragStart (source, piece, position, orientation) {
+            // Non permettere di muovere i pezzi se il gioco è finito
+            if (game.game_over()) return false;
+
+            // Permetti di muovere solo i pezzi del colore di chi ha il turno
+            if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+                (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+                return false;
+            }
+        }
+
+        function onDrop (source, target) {
+            // Tenta la mossa legale
+            var move = game.move({
+                from: source,
+                to: target,
+                promotion: 'q' // Promuove sempre a Regina per semplicità
+            });
+
+            // Se illegale, snapback
+            if (move === null) return 'snapback';
+
+            // SE LEGALE: Aggiungila alla lista
+            recordedMoves.push(move.san); // Salviamo la notazione SAN (es. "Nf3")
+            updateSolutionInput();
+        }
+
+        function updateSolutionInput() {
+            // Scrive la lista di mosse nella casella di testo
+            $('#solution').val(recordedMoves.join(', '));
+            
+            // Abilita il tasto salva solo se c'è almeno una mossa
+            if (recordedMoves.length > 0) {
+                $('#saveBtn').prop('disabled', false);
+            } else {
+                $('#saveBtn').prop('disabled', true);
+            }
+        }
+
+        // --- PULSANTI FASE 2 ---
+        
+        // Torna indietro all'editor
+        $('#btnBackToSetup').on('click', function() {
+            // Resetta tutto
+            game.reset();
+            recordedMoves = [];
+            updateSolutionInput();
+            
+            // UI Switch
+            $('#controlsPhase2').addClass('hidden');
+            $('#msgPhase2').addClass('hidden');
+            $('#controlsPhase1').removeClass('hidden');
+            $('#msgPhase1').removeClass('hidden');
+            
+            // Ricrea board editor
+            board.destroy();
+            initSetupBoard();
+            // Reimposta la posizione che avevamo (senza perderla)
+            // Nota: startFen ha " w KQkq...", board.position vuole oggetto o FEN semplice.
+            // Usiamo split per prendere solo la parte pezzi
+            if(startFen) board.position(startFen.split(' ')[0]); 
+        });
+
+        // Annulla ultima mossa
+        $('#btnUndoMove').on('click', function() {
+            var move = game.undo();
+            if (move) {
+                recordedMoves.pop();
+                updateSolutionInput();
+                board.position(game.fen());
+            }
+        });
+
     </script>
 </body>
 </html>
