@@ -5,14 +5,31 @@
     <title>Revisione Problema ID: {{ problem.id }}</title>
     
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chessboard-1.0.0.css') }}">
+    
     <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+    
     <script src="{{ url_for('static', filename='js/chessboard-1.0.0.js') }}"></script>
+    
     <script src="{{ url_for('static', filename='js/chess.js') }}"></script>
     
     <style>
+        /* Responsive Container */
         .board-container {
-            width: 400px;
-            margin: 20px auto;
+            width: 100%;             /* Occupa tutto lo spazio disponibile */
+            max-width: 400px;        /* ...ma fermati a 400px su schermi grandi */
+            margin: 20px auto;       /* Centra */
+            padding: 0 10px;         /* Aggiungi un po' di respiro ai lati su mobile */
+            box-sizing: border-box;  /* Include il padding nel calcolo della larghezza */
+        }
+        
+        /* Rendiamo i bottoni più facili da premere col dito */
+        button {
+            padding: 12px;
+            font-size: 16px;
+            margin-top: 5px;
+            width: 100%;
+            touch-action: manipulation; /* Migliora la risposta al tocco */
+            cursor: pointer;
         }
     </style>
 </head>
@@ -47,10 +64,16 @@
         
         // Verifica se Chess è stato caricato correttamente
         if (typeof Chess === 'undefined') {
-            alert("Errore critico: La libreria chess.js non è stata caricata. Controlla la connessione internet.");
+            alert("Errore critico: La libreria chess.js non è stata caricata. Controlla la connessione internet o il file locale.");
         }
 
-        var game = new Chess(problemFEN);
+        var game = new Chess();
+        var loadResult = game.load(problemFEN);
+
+        if (!loadResult) {
+            $('#status-message').html('<strong style="color: red;">ERRORE FEN: Impossibile caricare la partita.</strong>');
+        }
+
         var board = null;
         var currentMoveIndex = 0;
         var isSolving = true;
@@ -138,18 +161,20 @@
         
         $('#resetButton').on('click', resetProblem);
 
-        // CONFIGURAZIONE SCACCHIERA (Correzione Immagini applicata)
+        // CONFIGURAZIONE SCACCHIERA
         var config = {
             draggable: true,
             position: problemFEN,
             onDrop: onDrop,
             sparePieces: false,
-            // Qui concateniamo la stringa JS, risolvendo il problema del 404
             pieceTheme: '{{ url_for("static", filename="img/chesspieces/wikipedia/") }}' + '{piece}.png'
         };
 
         board = Chessboard('board', config);
         updateStatus();
+
+        // RIDIMENSIONAMENTO AUTOMATICO
+        $(window).resize(board.resize);
     </script>
 </body>
 </html>

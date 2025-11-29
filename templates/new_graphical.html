@@ -10,30 +10,54 @@
     
     <style>
         .editor-container {
-            width: 800px;
+            width: 100%;
+            max-width: 900px;        /* Limite massimo per Desktop */
             margin: 20px auto;
             display: flex;
-            gap: 30px;
+            flex-direction: column;  /* DEFAULT: Mobile First (uno sopra l'altro) */
+            gap: 20px;
+            padding: 10px;
+            box-sizing: border-box;
         }
-        .board-section { width: 450px; }
-        .controls-section { flex: 1; }
-        label { display: block; margin-top: 15px; font-weight: bold; }
-        input[type="text"], textarea { width: 100%; box-sizing: border-box; padding: 8px; }
-        textarea { height: 60px; }
+
+        .board-section { 
+            width: 100%;             /* La scacchiera si adatta alla larghezza del telefono */
+            max-width: 450px;        /* Non diventare gigante su desktop */
+            margin: 0 auto;          /* Centra la scacchiera */
+        }
         
-        .btn { margin-top: 10px; padding: 10px; width: 100%; cursor: pointer; font-size: 14px; }
+        .controls-section { 
+            width: 100%;             /* I controlli occupano tutta la larghezza */
+        }
+
+        /* MEDIA QUERY: Regole che scattano solo su schermi più grandi di 768px (Tablet/PC) */
+        @media (min-width: 768px) {
+            .editor-container {
+                flex-direction: row; /* Rimetti affiancati su schermi grandi */
+            }
+            .controls-section {
+                flex: 1;             /* Prendi lo spazio rimanente */
+            }
+        }
+
+        /* Stili Generali */
+        label { display: block; margin-top: 15px; font-weight: bold; }
+        input[type="text"], textarea { width: 100%; box-sizing: border-box; padding: 10px; font-size: 16px; }
+        textarea { height: 80px; }
+        
+        .btn { margin-top: 10px; padding: 12px; width: 100%; cursor: pointer; font-size: 16px; border-radius: 5px; }
         .btn-primary { background-color: #4CAF50; color: white; border: none; font-weight: bold; }
         .btn-danger { background-color: #f44336; color: white; border: none; }
         .btn-secondary { background-color: #e7e7e7; border: 1px solid #ccc; }
 
         .phase-indicator {
-            padding: 10px;
-            margin-bottom: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
             background-color: #e3f2fd;
             border-left: 5px solid #2196F3;
+            font-size: 14px;
         }
         
-        /* Nascondiamo sezioni in base allo stato */
         .hidden { display: none; }
     </style>
 </head>
@@ -126,31 +150,27 @@
             var turn = $('input[name="turn"]:checked').val();
             
             // Convertiamo la posizione grafica in FEN parziale
-            // (Chessboard.js restituisce obj, dobbiamo convertirlo, ma board.fen() ci dà la stringa)
             var positionFen = board.fen(); 
             
             // Costruiamo un FEN completo per chess.js
-            // Aggiungiamo "- - 0 1" per arrocco/en-passant/mosse (default)
+            // CORRETTO: Aggiunto spazio prima di KQkq
             var candidateFen = positionFen + " " + turn + " KQkq - 0 1"; 
             
             // 2. VALIDAZIONE CON CHESS.JS
             var validationResult = game.load(candidateFen);
             
             if (!validationResult) {
-                // Se chess.js non riesce a caricare il FEN, c'è un errore grave (es. mancano i Re)
                 alert("ERRORE: La posizione non è valida!\n\nVerifica che:\n1. Ci siano sia il Re Bianco che il Re Nero.\n2. Non ci siano pedoni nell'ultima traversa.");
-                return; // Blocca tutto, resta in Fase 1
+                return; 
             }
 
-            // Controllo extra: è scacco al re che deve muovere? (Spesso illegale nei puzzle se si deve muovere per primi)
-            // Ma per i puzzle tattici, a volte inizi sotto scacco. Lasciamo passare, ma avvisiamo se è matto.
             if (game.in_checkmate()) {
                 alert("Attenzione: In questa posizione è già Scacco Matto!");
             }
 
             // 3. SE VALIDO: Blocchiamo la posizione iniziale
             startFen = candidateFen;
-            $('#fen').val(startFen); // Riempiamo l'input nascosto per il salvataggio
+            $('#fen').val(startFen); 
             
             // 4. Passiamo alla Fase 2 (Grafica e Logica)
             enterRecordingMode();
@@ -159,36 +179,28 @@
 
         // --- FASE 2: REGISTRAZIONE MOSSE ---
         function enterRecordingMode() {
-            // Nascondi controlli Fase 1, Mostra Fase 2
             $('#controlsPhase1').addClass('hidden');
             $('#msgPhase1').addClass('hidden');
             $('#controlsPhase2').removeClass('hidden');
             $('#msgPhase2').removeClass('hidden');
             
-            // Abilita il tasto Salva (solo se c'è almeno una mossa, vedremo dopo)
-            // Ricreiamo la scacchiera in modalità "Play" (no spare pieces, solo mosse legali)
-            board.destroy(); // Distruggiamo la vecchia board editor
+            board.destroy(); 
             
             var config = {
                 draggable: true,
                 position: startFen,
-                onDragStart: onDragStart, // Controlla chi può muovere
-                onDrop: onDrop,           // Gestisce la mossa e la registrazione
+                onDragStart: onDragStart, 
+                onDrop: onDrop,           
                 pieceTheme: pieceThemePath
             };
             board = Chessboard('board', config);
             
-            // Resettiamo le mosse registrate
             recordedMoves = [];
             updateSolutionInput();
         }
 
-        // Funzioni di supporto per la scacchiera "Giocabile"
         function onDragStart (source, piece, position, orientation) {
-            // Non permettere di muovere i pezzi se il gioco è finito
             if (game.game_over()) return false;
-
-            // Permetti di muovere solo i pezzi del colore di chi ha il turno
             if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
                 (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
                 return false;
@@ -196,26 +208,21 @@
         }
 
         function onDrop (source, target) {
-            // Tenta la mossa legale
             var move = game.move({
                 from: source,
                 to: target,
-                promotion: 'q' // Promuove sempre a Regina per semplicità
+                promotion: 'q' 
             });
 
-            // Se illegale, snapback
             if (move === null) return 'snapback';
 
-            // SE LEGALE: Aggiungila alla lista
-            recordedMoves.push(move.san); // Salviamo la notazione SAN (es. "Nf3")
+            recordedMoves.push(move.san); 
             updateSolutionInput();
         }
 
         function updateSolutionInput() {
-            // Scrive la lista di mosse nella casella di testo
             $('#solution').val(recordedMoves.join(', '));
             
-            // Abilita il tasto salva solo se c'è almeno una mossa
             if (recordedMoves.length > 0) {
                 $('#saveBtn').prop('disabled', false);
             } else {
@@ -225,29 +232,21 @@
 
         // --- PULSANTI FASE 2 ---
         
-        // Torna indietro all'editor
         $('#btnBackToSetup').on('click', function() {
-            // Resetta tutto
             game.reset();
             recordedMoves = [];
             updateSolutionInput();
             
-            // UI Switch
             $('#controlsPhase2').addClass('hidden');
             $('#msgPhase2').addClass('hidden');
             $('#controlsPhase1').removeClass('hidden');
             $('#msgPhase1').removeClass('hidden');
             
-            // Ricrea board editor
             board.destroy();
             initSetupBoard();
-            // Reimposta la posizione che avevamo (senza perderla)
-            // Nota: startFen ha " w KQkq...", board.position vuole oggetto o FEN semplice.
-            // Usiamo split per prendere solo la parte pezzi
             if(startFen) board.position(startFen.split(' ')[0]); 
         });
 
-        // Annulla ultima mossa
         $('#btnUndoMove').on('click', function() {
             var move = game.undo();
             if (move) {
@@ -257,6 +256,8 @@
             }
         });
 
+        // RIDIMENSIONAMENTO AUTOMATICO
+        $(window).resize(board.resize);
     </script>
 </body>
 </html>
