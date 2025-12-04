@@ -7,77 +7,108 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chessboard-1.0.0.css') }}">
     
     <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
-    
     <script src="{{ url_for('static', filename='js/chessboard-1.0.0.js') }}"></script>
-    
     <script src="{{ url_for('static', filename='js/chess.js') }}"></script>
     
     <style>
         /* Responsive Container */
         .board-container {
-            width: 100%;             /* Occupa tutto lo spazio disponibile */
-            max-width: 400px;        /* ...ma fermati a 400px su schermi grandi */
-            margin: 20px auto;       /* Centra */
-            padding: 0 10px;         /* Aggiungi un po' di respiro ai lati su mobile */
-            box-sizing: border-box;  /* Include il padding nel calcolo della larghezza */
+            width: 100%;
+            max-width: 450px; /* Leggermente più largo per i bottoni */
+            margin: 20px auto;
+            padding: 0 10px;
+            box-sizing: border-box;
+            text-align: center; /* Centra testi e bottoni */
         }
         
-        /* Rendiamo i bottoni più facili da premere col dito */
+        /* Stili Bottoni */
         button {
             padding: 12px;
             font-size: 16px;
-            margin-top: 5px;
+            margin-top: 8px;
             width: 100%;
-            touch-action: manipulation; /* Migliora la risposta al tocco */
+            touch-action: manipulation;
             cursor: pointer;
+            border-radius: 5px;
+            border: none;
+            color: white;
+            font-weight: bold;
         }
+
+        /* Colori Bottoni */
+        #solveButton { background-color: #FF9800; color: white; } /* Arancione */
+        #resetButton { background-color: #607D8B; color: white; } /* Grigio Blu */
+        
+        /* Bottoni Valutazione */
+        #rateWrongButton { background-color: #f44336; } /* Rosso */
+        #rateCorrectButton { background-color: #FFC107; color: black; } /* Giallo/Arancio */
+        #rateMediumButton { background-color: #2196F3; } /* Blu */
+        #rateEasyButton { background-color: #4CAF50; } /* Verde */
+
+        .rating-container {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .rating-container button {
+            flex: 1; /* I bottoni occupano spazio uguale */
+            font-size: 14px;
+        }
+
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div class="board-container">
-        <h1>Problema Scacchistico: {{ problem.id }}</h1>
-        <p><strong>Tags:</strong> {{ problem.tags|join(', ') }}</p>
+        <h3>Problema #{{ problem.id }}</h3>
+        <p><small>Tags: {{ problem.tags|join(', ') }}</small></p>
 
         <div id="board" style="width: 100%"></div>
 
-        <p id="status-message">Tocca a {{ 'Bianco' if problem.fen.split()[1] == 'w' else 'Nero' }} muovere.</p>
+        <p id="status-message" style="font-weight: bold; margin: 15px 0;">
+            Tocca a {{ 'Bianco' if problem.fen.split()[1] == 'w' else 'Nero' }} muovere.
+        </p>
 
-        <button id="solveButton">Mostra Soluzione / Arrenditi</button>
-        <button id="resetButton" style="display: none;">Riprova</button>
+        <button id="solveButton">👁️ Vedi Risultato (Mi arrendo)</button>
+        <button id="resetButton" class="hidden">🔄 Riprova il problema</button>
 
         <hr>
 
-        <h2>Valuta la tua risposta:</h2>
-        <form id="ratingForm" method="POST" action="{{ url_for('rate_problem', problem_id=problem.id) }}">
-            <button type="submit" name="rating" value="Sbagliato" id="rateWrongButton">Sbagliato (0)</button>
-            <button type="submit" name="rating" value="Difficile" id="rateCorrectButton">Difficile (3)</button>
-            <button type="submit" name="rating" value="Medio" name="rating">Medio (4)</button>
-            <button type="submit" name="rating" value="Facile" name="rating">Facile (5)</button>
-        </form>
+        <div id="ratingSection">
+            <p>Valuta la tua risposta:</p>
+            <form id="ratingForm" method="POST" action="{{ url_for('rate_problem', problem_id=problem.id) }}">
+                <div class="rating-container">
+                    <button type="submit" name="rating" value="Sbagliato" id="rateWrongButton">Sbagliato</button>
+                    <button type="submit" name="rating" value="Difficile" id="rateCorrectButton">Difficile</button>
+                    <button type="submit" name="rating" value="Medio" id="rateMediumButton">Medio</button>
+                    <button type="submit" name="rating" value="Facile" id="rateEasyButton">Facile</button>
+                </div>
+            </form>
+        </div>
 
-        <p><a href="{{ url_for('index') }}">Torna alla Dashboard</a></p>
+        <p><a href="{{ url_for('index') }}" style="display:block; margin-top:20px; color:#555;">Torna alla Dashboard</a></p>
     </div>
 
     <script>
         var problemFEN = "{{ problem.fen }}";
         var solutionMoves = {{ problem.solution_moves|tojson }}; 
         
-        // Verifica se Chess è stato caricato correttamente
         if (typeof Chess === 'undefined') {
-            alert("Errore critico: La libreria chess.js non è stata caricata. Controlla la connessione internet o il file locale.");
+            alert("Errore critico: chess.js non caricato.");
         }
 
         var game = new Chess();
         var loadResult = game.load(problemFEN);
 
         if (!loadResult) {
-            $('#status-message').html('<strong style="color: red;">ERRORE FEN: Impossibile caricare la partita.</strong>');
+            $('#status-message').html('<strong style="color: red;">ERRORE FEN: Dati corrotti.</strong>');
         }
 
         var board = null;
         var currentMoveIndex = 0;
         var isSolving = true;
         
+        // --- GESTIONE MOSSA UTENTE ---
         function onDrop (source, target) {
             if (!isSolving) return 'snapback'; 
             
@@ -96,20 +127,19 @@
                 updateStatus();     
                 
                 if (currentMoveIndex >= solutionMoves.length) {
-                    $('#status-message').html('<strong>Risolto!</strong> Ottimo lavoro. Valuta la difficoltà:');
-                    isSolving = false; 
-                    $('#rateWrongButton').prop('disabled', true); 
+                    puzzleSolved();
                 } else {
                     setTimeout(makeComputerMove, 500);
                 }
                 
             } else {
                 game.undo(); 
-                $('#status-message').html('<span style="color: red;">Mossa errata! Riprova.</span>');
+                $('#status-message').html('<span style="color: red;">❌ Mossa errata! Riprova.</span>');
                 return 'snapback'; 
             }
         };
 
+        // --- RISPOSTA AUTOMATICA DEL COMPUTER (Se il puzzle continua) ---
         function makeComputerMove() {
             if (currentMoveIndex >= solutionMoves.length) return;
 
@@ -121,47 +151,81 @@
             updateStatus();
         
             if (currentMoveIndex >= solutionMoves.length) {
-                $('#status-message').html('<strong>Risolto!</strong> (Sull\'ultima mossa avversaria).');
-                isSolving = false;
-                $('#rateWrongButton').prop('disabled', true);
+                // Caso raro: il puzzle finisce con una mossa del computer
+                puzzleSolved();
             }
         }
 
-        function updateStatus () {
-            var moveColor = 'Bianco';
-            if (game.turn() === 'b') {
-                moveColor = 'Nero';
-            }
-            var status = 'Tocca a ' + moveColor + ' muovere.';
-            if (currentMoveIndex > 0) {
-                status += ' Mossa ' + (currentMoveIndex + 1) + ' di ' + solutionMoves.length + '.';
-            }
-            $('#status-message').html(status);
-        };
+        // --- PUZZLE RISOLTO CON SUCCESSO ---
+        function puzzleSolved() {
+            $('#status-message').html('<span style="color: green;">✅ <strong>Risolto!</strong> Valuta la difficoltà:</span>');
+            isSolving = false; 
+            $('#rateWrongButton').prop('disabled', true).css('opacity', '0.5'); // Disabilita "Sbagliato"
+            $('#solveButton').addClass('hidden'); // Nascondi "Mi arrendo"
+        }
 
-        function resetProblem() {
+        // --- LOGICA "VEDI RISULTATO" (Arresa) ---
+        $('#solveButton').on('click', function() {
+            isSolving = false; // Blocca interazione utente
+            
+            // 1. Nascondi i pulsanti di successo (non puoi votare Facile se ti sei arreso)
+            $('#rateCorrectButton, #rateMediumButton, #rateEasyButton').addClass('hidden');
+            $('#solveButton').addClass('hidden');
+            $('#resetButton').removeClass('hidden');
+
+            // 2. Cambia il tasto "Sbagliato" in "Continua"
+            $('#rateWrongButton')
+                .text("Continua (Registra come Errore)")
+                .css('width', '100%') // Fallo diventare grande
+                .removeClass('hidden');
+
+            $('#status-message').html('<strong>👀 Mostro la soluzione...</strong>');
+
+            // 3. Esegui l'animazione delle mosse mancanti
+            playSolutionAnimation();
+        });
+
+        // Funzione ricorsiva per animare le mosse
+        function playSolutionAnimation() {
+            // Se ci sono ancora mosse nella soluzione
+            if (currentMoveIndex < solutionMoves.length) {
+                var nextMove = solutionMoves[currentMoveIndex];
+                game.move(nextMove);
+                board.position(game.fen());
+                currentMoveIndex++;
+                
+                // Suona un suono (opzionale) o aggiorna UI
+                
+                // Richiama la prossima mossa dopo 800ms
+                setTimeout(playSolutionAnimation, 800);
+            } else {
+                $('#status-message').html('Soluzione completata. <strong>Clicca Continua.</strong>');
+            }
+        }
+
+        // --- RESET ---
+        $('#resetButton').on('click', function() {
             game.load(problemFEN);
             board.position(problemFEN);
             currentMoveIndex = 0;
             isSolving = true;
             updateStatus();
-            $('#solveButton').show();
-            $('#resetButton').hide();
-            $('#ratingForm button').prop('disabled', false);
-            $('#rateWrongButton').prop('disabled', false); 
-        }
-
-        $('#solveButton').on('click', function() {
-            isSolving = false;
-            $('#status-message').html('**Arreso/Soluzione Mostrata!** Premi Sbagliato e Riprova.');
-            $('#solveButton').hide();
-            $('#resetButton').show();
-            $('#rateCorrectButton, #rateMediumButton, #rateEasyButton').prop('disabled', true); 
+            
+            // Ripristina UI
+            $('#solveButton').removeClass('hidden');
+            $('#resetButton').addClass('hidden');
+            $('#rateCorrectButton, #rateMediumButton, #rateEasyButton').removeClass('hidden');
+            $('#rateWrongButton').text("Sbagliato").css('width', 'auto').prop('disabled', false).css('opacity', '1');
         });
-        
-        $('#resetButton').on('click', resetProblem);
 
-        // CONFIGURAZIONE SCACCHIERA
+        function updateStatus () {
+            var moveColor = 'Bianco';
+            if (game.turn() === 'b') { moveColor = 'Nero'; }
+            var status = 'Tocca a ' + moveColor;
+            $('#status-message').text(status);
+        };
+
+        // Configurazione Scacchiera
         var config = {
             draggable: true,
             position: problemFEN,
@@ -172,8 +236,6 @@
 
         board = Chessboard('board', config);
         updateStatus();
-
-        // RIDIMENSIONAMENTO AUTOMATICO
         $(window).resize(board.resize);
     </script>
 </body>
