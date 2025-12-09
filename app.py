@@ -139,39 +139,82 @@ def review_problem():
     problem = ready_problems[0]
     return render_template('review.html', problem=problem)
 
+# --- Rotta 3: Inserimento di un Nuovo Problema (Testuale) ---
 @app.route('/new', methods=['GET', 'POST'])
-@login_required # <--- PROTEZIONE
+@login_required # Assicurati di mantenere il login_required se lo hai attivato
 def new_problem():
+    """
+    Gestisce il modulo di inserimento testuale (FEN).
+    """
     if request.method == 'POST':
+        # 1. Recupera i dati base
         fen = request.form.get('fen')
         solution_str = request.form.get('solution')
         tags_str = request.form.get('tags')
-        
+
+        # 2. Recupera i nuovi dati opzionali (Dati Storici)
+        white = request.form.get('white_player') or None
+        black = request.form.get('black_player') or None
+        year = request.form.get('game_year') or None
+        tournament = request.form.get('tournament') or None
+        winner = request.form.get('winner')
+
+        # Conversione tipi
+        if year: year = int(year)
+        if winner is not None and winner != "": winner = int(winner)
+        else: winner = None
+
+        # 3. Pulizia liste
         solution_list = [m.strip() for m in solution_str.split(',') if m.strip()]
         tags_list = [t.strip() for t in tags_str.split(',') if t.strip()]
 
+        # 4. Inserimento nel database
         if fen and solution_list:
-            new_id = db_manager.insert_new_problem(fen, solution_list, tags_list)
+            new_id = db_manager.insert_new_problem(
+                fen, solution_list, tags_list,
+                white_player=white, black_player=black,
+                game_year=year, tournament=tournament, winner=winner
+            )
             if new_id:
                 return redirect(url_for('index'))
-        return "Errore: Dati mancanti.", 400
+        
+        return "Errore: FEN e Soluzione sono obbligatori.", 400
+        
     return render_template('new_problem.html')
 
 @app.route('/new_graphical', methods=['GET', 'POST'])
-@login_required # <--- PROTEZIONE
+@login_required
 def new_problem_graphical():
     if request.method == 'POST':
         fen = request.form.get('fen')
         solution_str = request.form.get('solution')
         tags_str = request.form.get('tags')
+        
+        # --- NUOVI CAMPI ---
+        white = request.form.get('white_player') or None
+        black = request.form.get('black_player') or None
+        year = request.form.get('game_year') or None
+        tournament = request.form.get('tournament') or None
+        winner = request.form.get('winner') # Arriva come stringa "0" o "1" o None
+        
+        # Convertiamo anno e vincitore in interi se presenti
+        if year: year = int(year)
+        if winner is not None and winner != "": winner = int(winner)
+        else: winner = None
 
         solution_list = [m.strip() for m in solution_str.split(',') if m.strip()]
         tags_list = [t.strip() for t in tags_str.split(',') if t.strip()]
 
         if fen and solution_list:
-            new_id = db_manager.insert_new_problem(fen, solution_list, tags_list)
+            # Passiamo i nuovi argomenti alla funzione aggiornata
+            new_id = db_manager.insert_new_problem(
+                fen, solution_list, tags_list,
+                white_player=white, black_player=black,
+                game_year=year, tournament=tournament, winner=winner
+            )
             if new_id:
                 return redirect(url_for('index'))
+        
         return "Errore: Dati mancanti.", 400
     return render_template('new_graphical.html')
 

@@ -22,59 +22,54 @@ def create_connection():
         print(f"Errore durante la connessione al database: {e}")
         return None
 
-def insert_new_problem(fen: str, solution_moves: list, tags: list):
+def insert_new_problem(fen, solution_moves, tags, 
+                       white_player=None, black_player=None, 
+                       game_year=None, tournament=None, winner=None):
     """
-    Inserisce un nuovo problema scacchistico nel database con i valori SM-2 iniziali.
-
-    :param fen: La posizione scacchistica in notazione FEN.
-    :param solution_moves: La sequenza di mosse di soluzione (lista di stringhe).
-    :param tags: La lista dei tag tattici (lista di stringhe).
-    :return: L'ID del nuovo problema inserito o None in caso di errore.
+    Inserisce un problema con metadati opzionali sulla partita.
     """
     conn = create_connection()
     if conn is None:
         return None
 
-    # 1. Preparazione dei Dati
-    
-    # SQLite non gestisce liste. Convertiamo liste in stringhe JSON.
     solution_json = json.dumps(solution_moves)
     tags_json = json.dumps(tags)
-    
-    # La data di "next_review" è impostata a "ora" (timestamp Unix) in modo
-    # che il problema sia immediatamente disponibile per l'utente.
     current_timestamp = time.time() 
 
-    # 2. Definizione della Query SQL
+    # Query aggiornata con i nuovi campi
     sql = """
     INSERT INTO problems (
         fen, solution_moves, tags, 
         last_reviewed, next_review, ease_factor, 
-        interval_days, review_count
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        interval_days, review_count,
+        white_player, black_player, game_year, tournament, winner
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     
-    # 3. Parametri da inserire
+    # Parametri (nota l'ordine)
     params = (
         fen,
         solution_json,
         tags_json,
-        current_timestamp,           # last_reviewed (prima volta)
-        current_timestamp,           # next_review (subito pronto)
-        INITIAL_EASE_FACTOR,         # ease_factor (inizia a 2.5)
-        INITIAL_INTERVAL,            # interval_days (inizia a 0)
-        INITIAL_REVIEW_COUNT         # review_count (inizia a 0)
+        current_timestamp,
+        current_timestamp,
+        INITIAL_EASE_FACTOR,
+        INITIAL_INTERVAL,
+        INITIAL_REVIEW_COUNT,
+        white_player,  # Nuovo
+        black_player,  # Nuovo
+        game_year,     # Nuovo
+        tournament,    # Nuovo
+        winner         # Nuovo
     )
 
-    # 4. Esecuzione della Query
     try:
         cursor = conn.cursor()
         cursor.execute(sql, params)
         conn.commit()
-        # Restituisce l'ID della riga appena inserita
         return cursor.lastrowid
     except sqlite3.Error as e:
-        print(f"Errore durante l'inserimento del problema: {e}")
+        print(f"Errore durante l'inserimento: {e}")
         return None
     finally:
         conn.close()

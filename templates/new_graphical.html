@@ -106,6 +106,36 @@
                 <input type="hidden" id="fen" name="fen">
 
                 <hr>
+                <details>
+                    <summary style="cursor:pointer; font-weight:bold; color:#555;">Dati Storici Partita (Opzionale)</summary>
+                    <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-top:5px;">
+                        
+                        <label>Giocatori:</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" name="white_player" placeholder="Bianco (es. Fischer)">
+                            <input type="text" name="black_player" placeholder="Nero (es. Spassky)">
+                        </div>
+
+                        <div style="display:flex; gap:10px;">
+                            <div style="flex:1;">
+                                <label>Anno:</label>
+                                <input type="number" name="game_year" placeholder="1972" min="1500" max="2099">
+                            </div>
+                            <div style="flex:1;">
+                                <label>Vincitore:</label>
+                                <select name="winner" style="width:100%; padding:10px; margin-top:5px;">
+                                    <option value="">-- Seleziona --</option>
+                                    <option value="0">Bianco (0)</option>
+                                    <option value="1">Nero (1)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <label>Torneo:</label>
+                        <input type="text" name="tournament" placeholder="Campionato del Mondo">
+                    </div>
+                </details>
+                <hr>
                 <button type="submit" class="btn btn-primary" id="saveBtn" disabled>💾 Salva Problema nel DB</button>
                 <br>
                 <a href="{{ url_for('index') }}" style="display:block; text-align:center; margin-top:10px;">Annulla</a>

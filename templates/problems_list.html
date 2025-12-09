@@ -6,73 +6,132 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chessboard-1.0.0.css') }}">
     <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chessboard-1.0.0.js') }}"></script>
+    
     <style>
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }
-        th { background-color: #f2f2f2; }
-        .mini-board { width: 150px; margin: 0 auto; } /* Dimensione fissa per le mini scacchiere */
+        body { font-family: sans-serif; padding: 20px; background-color: #f9f9f9; }
+        h1 { text-align: center; color: #333; }
+        
+        /* Contenitore tabella scrollabile per mobile */
+        .table-container {
+            overflow-x: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { border-bottom: 1px solid #ddd; padding: 12px; text-align: center; vertical-align: middle; }
+        th { background-color: #f2f2f2; color: #555; text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px; }
+        tr:hover { background-color: #f5f5f5; }
+
+        .mini-board { width: 140px; margin: 0 auto; } 
+
+        /* Stili per i Dati Partita */
+        .match-info { text-align: left; font-size: 0.9em; line-height: 1.4; }
+        .players { font-weight: bold; color: #333; }
+        .meta { color: #777; font-size: 0.9em; }
+        .result-badge {
+            display: inline-block;
+            margin-top: 4px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .res-white { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; } /* Verde chiaro */
+        .res-black { background-color: #eceff1; color: #37474f; border: 1px solid #cfd8dc; } /* Grigio scuro */
+        
+        .sm2-badge { font-weight: bold; padding: 4px 8px; border-radius: 12px; font-size: 0.85em; color: white; }
+        .diff-easy { background-color: #4CAF50; }
+        .diff-medium { background-color: #FF9800; }
+        .diff-hard { background-color: #f44336; }
+
+        .back-link { display: block; text-align: center; margin-top: 20px; text-decoration: none; color: #2196F3; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>Database Problemi ({{ problems|length }} totali)</h1>
-    <p><a href="{{ url_for('index') }}">Torna alla Home</a></p>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Posizione</th>
-                <th>Ultima Ripetizione</th>
-                <th>Stato SM-2</th>
-                <th>Ripetizioni</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for p in problems %}
-            <tr>
-                <td>
-                    <div id="board_{{ p.id }}" class="mini-board"></div>
-                    <small style="font-size: 10px; color: grey;">ID: {{ p.id }}</small>
-                </td>
-                
-                <td>
-                    {{ p.last_reviewed | format_date }}
-                </td>
-                
-                <td>
-                    <strong>Difficoltà (EF):</strong> {{ "%.2f"|format(p.ease_factor) }}<br>
-                    <small>
-                        {% if p.ease_factor >= 2.6 %} <span style="color:green">Molto Facile</span>
-                        {% elif p.ease_factor >= 2.3 %} <span style="color:blue">Facile</span>
-                        {% elif p.ease_factor >= 1.5 %} <span style="color:orange">Medio</span>
-                        {% else %} <span style="color:red">Difficile</span>
+    <h1>Database Problemi ({{ problems|length }})</h1>
+    
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 160px;">Posizione</th>
+                    <th>Dettagli Partita</th> <th>Stato Apprendimento</th>
+                    <th>Ultima Revisione</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in problems %}
+                <tr>
+                    <td>
+                        <div id="board_{{ p.id }}" class="mini-board"></div>
+                        <small style="font-size: 10px; color: grey;">ID: {{ p.id }}</small>
+                    </td>
+                    
+                    <td>
+                        {% if p.white_player or p.black_player %}
+                            <div class="match-info">
+                                <div class="players">
+                                    ⚪ {{ p.white_player if p.white_player else '?' }}<br>
+                                    ⚫ {{ p.black_player if p.black_player else '?' }}
+                                </div>
+                                <div class="meta">
+                                    {% if p.game_year %}📅 {{ p.game_year }}{% endif %}
+                                    {% if p.tournament %} • 🏆 {{ p.tournament }}{% endif %}
+                                </div>
+                                
+                                {% if p.winner == 0 %}
+                                    <span class="result-badge res-white">1-0 (Vince Bianco)</span>
+                                {% elif p.winner == 1 %}
+                                    <span class="result-badge res-black">0-1 (Vince Nero)</span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <em style="color: #bbb;">Nessun dato storico</em>
+                            <br>
+                            <small style="color: #999;">Tags: {{ p.tags_json }}</small>
                         {% endif %}
-                    </small>
-                    <br>
-                    <br>
-                    <strong>Intervallo:</strong> {{ p.interval_days }} giorni
-                </td>
-                
-                <td>
-                    {{ p.review_count }} volte
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    </td>
+                    
+                    <td>
+                        {% if p.ease_factor >= 2.6 %}
+                            <span class="sm2-badge diff-easy">Molto Facile</span>
+                        {% elif p.ease_factor >= 2.3 %}
+                            <span class="sm2-badge diff-easy" style="background-color: #8BC34A;">Facile</span>
+                        {% elif p.ease_factor >= 1.5 %}
+                            <span class="sm2-badge diff-medium">Medio</span>
+                        {% else %}
+                            <span class="sm2-badge diff-hard">Difficile</span>
+                        {% endif %}
+                        
+                        <div style="margin-top: 8px; font-size: 0.9em; color: #555;">
+                            Intervallo: <strong>{{ p.interval_days }} gg</strong><br>
+                            Ripetizioni: {{ p.review_count }}
+                        </div>
+                    </td>
+                    
+                    <td>
+                        {{ p.last_reviewed | format_date }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <a href="{{ url_for('index') }}" class="back-link">⬅ Torna alla Dashboard</a>
 
     <script>
-        // Script per inizializzare TUTTE le scacchiere
-        // Cicliamo su tutti i problemi passati da Flask e creiamo le board
-        
+        // Inizializzazione massiva delle scacchiere
         var config = {
-            showNotation: false, // Nascondi coordinate per pulizia
-            draggable: false,    // Solo visualizzazione
+            showNotation: false,
+            draggable: false, 
             pieceTheme: '{{ url_for("static", filename="img/chesspieces/wikipedia/") }}' + '{piece}.png'
         };
 
         {% for p in problems %}
-            // Crea una scacchiera per l'ID specifico
-            var board_{{ p.id }} = Chessboard('board_{{ p.id }}', {
+            Chessboard('board_{{ p.id }}', {
                 ...config, 
                 position: '{{ p.fen }}'
             });

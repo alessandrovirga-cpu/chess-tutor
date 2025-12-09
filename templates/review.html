@@ -14,11 +14,11 @@
         /* Responsive Container */
         .board-container {
             width: 100%;
-            max-width: 450px; /* Leggermente più largo per i bottoni */
+            max-width: 450px; 
             margin: 20px auto;
             padding: 0 10px;
             box-sizing: border-box;
-            text-align: center; /* Centra testi e bottoni */
+            text-align: center; 
         }
         
         /* Stili Bottoni */
@@ -51,17 +51,48 @@
             margin-top: 10px;
         }
         .rating-container button {
-            flex: 1; /* I bottoni occupano spazio uguale */
+            flex: 1; 
             font-size: 14px;
         }
 
         .hidden { display: none !important; }
+
+        /* Box Dati Storici */
+        .history-box {
+            background-color: #e3f2fd; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin-bottom: 15px;
+            border-left: 5px solid #2196F3;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
     <div class="board-container">
         <h3>Problema #{{ problem.id }}</h3>
-        <p><small>Tags: {{ problem.tags|join(', ') }}</small></p>
+
+        {% if problem.white_player and problem.black_player %}
+            <div class="history-box">
+                <span style="font-size: 1.1em;">
+                    ⚪ <strong>{{ problem.white_player }}</strong> vs ⚫ <strong>{{ problem.black_player }}</strong>
+                </span>
+                <br>
+                <small style="color: #555;">
+                    📅 {{ problem.game_year if problem.game_year else 'Anno sconosciuto' }} 
+                    {% if problem.tournament %} - 🏆 {{ problem.tournament }} {% endif %}
+                </small>
+                <br>
+                <small style="font-weight: bold; color: #333;">
+                    Risultato: 
+                    {% if problem.winner == 0 %} 1-0 (Vince il Bianco)
+                    {% elif problem.winner == 1 %} 0-1 (Vince il Nero)
+                    {% else %} ½-½ o Sconosciuto {% endif %}
+                </small>
+            </div>
+        {% else %}
+            <p><small>Tags: {{ problem.tags|join(', ') }}</small></p>
+        {% endif %}
 
         <div id="board" style="width: 100%"></div>
 
@@ -139,7 +170,7 @@
             }
         };
 
-        // --- RISPOSTA AUTOMATICA DEL COMPUTER (Se il puzzle continua) ---
+        // --- RISPOSTA AUTOMATICA DEL COMPUTER ---
         function makeComputerMove() {
             if (currentMoveIndex >= solutionMoves.length) return;
 
@@ -151,52 +182,46 @@
             updateStatus();
         
             if (currentMoveIndex >= solutionMoves.length) {
-                // Caso raro: il puzzle finisce con una mossa del computer
                 puzzleSolved();
             }
         }
 
-        // --- PUZZLE RISOLTO CON SUCCESSO ---
+        // --- PUZZLE RISOLTO ---
         function puzzleSolved() {
             $('#status-message').html('<span style="color: green;">✅ <strong>Risolto!</strong> Valuta la difficoltà:</span>');
             isSolving = false; 
-            $('#rateWrongButton').prop('disabled', true).css('opacity', '0.5'); // Disabilita "Sbagliato"
-            $('#solveButton').addClass('hidden'); // Nascondi "Mi arrendo"
+            $('#rateWrongButton').prop('disabled', true).css('opacity', '0.5'); 
+            $('#solveButton').addClass('hidden'); 
         }
 
-        // --- LOGICA "VEDI RISULTATO" (Arresa) ---
+        // --- "VEDI RISULTATO" (Arresa) ---
         $('#solveButton').on('click', function() {
-            isSolving = false; // Blocca interazione utente
+            isSolving = false; 
             
-            // 1. Nascondi i pulsanti di successo (non puoi votare Facile se ti sei arreso)
+            // Nascondi pulsanti successo e tasto arrendi
             $('#rateCorrectButton, #rateMediumButton, #rateEasyButton').addClass('hidden');
             $('#solveButton').addClass('hidden');
             $('#resetButton').removeClass('hidden');
 
-            // 2. Cambia il tasto "Sbagliato" in "Continua"
+            // Trasforma "Sbagliato" in "Continua"
             $('#rateWrongButton')
                 .text("Continua (Registra come Errore)")
-                .css('width', '100%') // Fallo diventare grande
+                .css('width', '100%')
                 .removeClass('hidden');
 
             $('#status-message').html('<strong>👀 Mostro la soluzione...</strong>');
 
-            // 3. Esegui l'animazione delle mosse mancanti
             playSolutionAnimation();
         });
 
-        // Funzione ricorsiva per animare le mosse
+        // Animazione ricorsiva
         function playSolutionAnimation() {
-            // Se ci sono ancora mosse nella soluzione
             if (currentMoveIndex < solutionMoves.length) {
                 var nextMove = solutionMoves[currentMoveIndex];
                 game.move(nextMove);
                 board.position(game.fen());
                 currentMoveIndex++;
                 
-                // Suona un suono (opzionale) o aggiorna UI
-                
-                // Richiama la prossima mossa dopo 800ms
                 setTimeout(playSolutionAnimation, 800);
             } else {
                 $('#status-message').html('Soluzione completata. <strong>Clicca Continua.</strong>');
@@ -211,7 +236,6 @@
             isSolving = true;
             updateStatus();
             
-            // Ripristina UI
             $('#solveButton').removeClass('hidden');
             $('#resetButton').addClass('hidden');
             $('#rateCorrectButton, #rateMediumButton, #rateEasyButton').removeClass('hidden');
@@ -231,6 +255,7 @@
             position: problemFEN,
             onDrop: onDrop,
             sparePieces: false,
+            // Importante per le immagini dei pezzi
             pieceTheme: '{{ url_for("static", filename="img/chesspieces/wikipedia/") }}' + '{piece}.png'
         };
 

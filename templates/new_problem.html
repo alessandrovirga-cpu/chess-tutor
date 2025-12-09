@@ -1,23 +1,107 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Aggiungi Problema</title>
+    <title>Nuovo Problema (Testuale)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f4; padding: 20px; }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+        }
+        label { display: block; margin-top: 15px; font-weight: bold; }
+        input[type="text"], input[type="number"], textarea, select { 
+            width: 100%; 
+            padding: 10px; 
+            margin-top: 5px; 
+            box-sizing: border-box; 
+            border: 1px solid #ccc; 
+            border-radius: 4px;
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background-color: #4CAF50; 
+            color: white; 
+            border: none; 
+            margin-top: 20px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: bold;
+        }
+        button:hover { background-color: #45a049; }
+        .back-link { display: block; text-align: center; margin-top: 15px; color: #666; }
+        
+        /* Stile per la sezione opzionale */
+        details { 
+            margin-top: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            padding: 10px; 
+        }
+        summary { cursor: pointer; font-weight: bold; color: #555; }
+        .optional-box { margin-top: 10px; padding: 10px; background-color: #f9f9f9; }
+        .row { display: flex; gap: 10px; }
+        .col { flex: 1; }
+    </style>
 </head>
 <body>
-    <h1>Inserisci un Nuovo Problema Scacchistico</h1>
-    <form method="POST">
-        <label for="fen">FEN della Posizione Iniziale:</label><br>
-        <input type="text" id="fen" name="fen" required size="60"><br><br>
+    <div class="container">
+        <h1 style="text-align: center;">Inserimento Testuale (FEN)</h1>
         
-        <label for="solution">Soluzione (Mosse separate da virgola, es: Nf3, Nc6):</label><br>
-        <input type="text" id="solution" name="solution" required size="60"><br><br>
+        <form method="POST">
+            <label for="fen">Stringa FEN:</label>
+            <input type="text" id="fen" name="fen" required placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1">
+            <small style="color: grey;">Incolla qui il FEN copiato da Lichess o altri software.</small>
+
+            <label for="solution">Soluzione (Mosse separate da virgola):</label>
+            <input type="text" id="solution" name="solution" required placeholder="e4, e5, Nf3">
+
+            <label for="tags">Tags:</label>
+            <textarea id="tags" name="tags" placeholder="Apertura, Trappola, Gambetto..."></textarea>
+
+            <details>
+                <summary>Dati Storici Partita (Opzionale)</summary>
+                <div class="optional-box">
+                    <label>Giocatori:</label>
+                    <div class="row">
+                        <div class="col">
+                            <input type="text" name="white_player" placeholder="Bianco">
+                        </div>
+                        <div class="col">
+                            <input type="text" name="black_player" placeholder="Nero">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                            <label>Anno:</label>
+                            <input type="number" name="game_year" placeholder="1972" min="1500" max="2099">
+                        </div>
+                        <div class="col">
+                            <label>Vincitore:</label>
+                            <select name="winner">
+                                <option value="">-- Seleziona --</option>
+                                <option value="0">Bianco (0)</option>
+                                <option value="1">Nero (1)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label>Torneo:</label>
+                    <input type="text" name="tournament" placeholder="Luogo o Nome del Torneo">
+                </div>
+            </details>
+
+            <button type="submit">Salva Problema</button>
+        </form>
         
-        <label for="tags">Tag (Temi tattici separati da virgola, es: matto in 2, inchiodatura):</label><br>
-        <input type="text" id="tags" name="tags" size="60"><br><br>
-        
-        <button type="submit">Salva Problema</button>
-    </form>
-    <p><a href="{{ url_for('index') }}">Torna alla Dashboard</a></p>
+        <a href="{{ url_for('index') }}" class="back-link">Annulla e torna alla Home</a>
+    </div>
 </body>
 </html>
