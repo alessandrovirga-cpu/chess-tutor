@@ -24,7 +24,7 @@ def create_connection():
 
 def insert_new_problem(fen, solution_moves, tags, 
                        white_player=None, black_player=None, 
-                       game_year=None, tournament=None, winner=None):
+                       game_year=None, tournament=None, winner=None, custom_list=None):
     """
     Inserisce un problema con metadati opzionali sulla partita.
     """
@@ -40,27 +40,16 @@ def insert_new_problem(fen, solution_moves, tags,
     sql = """
     INSERT INTO problems (
         fen, solution_moves, tags, 
-        last_reviewed, next_review, ease_factor, 
-        interval_days, review_count,
-        white_player, black_player, game_year, tournament, winner
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        last_reviewed, next_review, ease_factor, interval_days, review_count,
+        white_player, black_player, game_year, tournament, winner,
+        custom_list  -- <--- AGGIUNTO
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
-    
-    # Parametri (nota l'ordine)
     params = (
-        fen,
-        solution_json,
-        tags_json,
-        current_timestamp,
-        current_timestamp,
-        INITIAL_EASE_FACTOR,
-        INITIAL_INTERVAL,
-        INITIAL_REVIEW_COUNT,
-        white_player,  # Nuovo
-        black_player,  # Nuovo
-        game_year,     # Nuovo
-        tournament,    # Nuovo
-        winner         # Nuovo
+        fen, solution_json, tags_json, current_timestamp, current_timestamp,
+        INITIAL_EASE_FACTOR, INITIAL_INTERVAL, INITIAL_REVIEW_COUNT,
+        white_player, black_player, game_year, tournament, winner,
+        custom_list # <--- AGGIUNTO
     )
 
     try:
@@ -89,7 +78,7 @@ def get_problem_by_id(problem_id):
     finally:
         conn.close()
 
-def update_problem_details(problem_id, tags, white, black, year, tournament, winner):
+def update_problem_details(problem_id, tags, white, black, year, tournament, winner, custom_list):
     """Aggiorna i metadati (tag e dati storici) di un problema esistente."""
     conn = create_connection()
     if conn is None: return False
@@ -98,7 +87,7 @@ def update_problem_details(problem_id, tags, white, black, year, tournament, win
     
     sql = """
     UPDATE problems 
-    SET tags = ?, white_player = ?, black_player = ?, game_year = ?, tournament = ?, winner = ?
+    SET tags = ?, white_player = ?, black_player = ?, game_year = ?, tournament = ?, winner = ?, custom_list = ?
     WHERE id = ?
     """
     try:
@@ -128,6 +117,21 @@ def delete_problem(problem_id):
         conn.close()
 
 
+# --- 3. NUOVA FUNZIONE: Ottieni liste uniche ---
+def get_unique_lists():
+    """Restituisce l'elenco di tutte le liste presenti nel DB."""
+    conn = create_connection()
+    if conn is None: return []
+    try:
+        cursor = conn.cursor()
+        # Prende solo i valori distinti e non nulli
+        cursor.execute("SELECT DISTINCT custom_list FROM problems WHERE custom_list IS NOT NULL AND custom_list != ''")
+        rows = cursor.fetchall()
+        return [row[0] for row in rows]
+    finally:
+        conn.close()
+
+
 # --- Esempio di Utilizzo della Funzione ---
 
 if __name__ == '__main__':
@@ -146,46 +150,43 @@ if __name__ == '__main__':
     else:
         print("Inserimento fallito.")
 
-def get_problems_for_review():
+def get_problems_for_review(active_list_filter=None):
     """
-    Recupera tutti i problemi dal database la cui data di revisione
-    (next_review) è passata o è il momento attuale.
-
-    :return: Una lista di problemi (come dizionari Python), o una lista vuota.
+    Recupera i problemi scaduti. Se active_list_filter è impostato,
+    restituisce solo i problemi di quella lista.
     """
     conn = create_connection()
     if conn is None:
         return []
 
-    # 1. Otteniamo il timestamp corrente
     current_timestamp = time.time()
     
-    # 2. Query SQL per selezionare i problemi
-    # Selezioniamo tutti i problemi dove 'next_review' è MINORE O UGUALE al tempo attuale.
-    sql = """
-    SELECT * FROM problems 
-    WHERE next_review <= ?
-    ORDER BY next_review ASC; -- Ordina per data, per dare priorità ai problemi più vecchi
-    """
+    # 1. Query Base: Prendi i problemi scaduti
+    sql = "SELECT * FROM problems WHERE next_review <= ?"
+    params = [current_timestamp]
+
+    # 2. Filtro Lista
+    if active_list_filter and active_list_filter != "Tutti":
+        sql += " AND custom_list = ?"
+        params.append(active_list_filter)
+
+    # 3. Ordinamento
+    sql += " ORDER BY next_review ASC"
     
     problems = []
     
     try:
         cursor = conn.cursor()
-        cursor.execute(sql, (current_timestamp,))
+        cursor.execute(sql, params)
         
-        # 3. Processiamo i risultati
         rows = cursor.fetchall()
         
         for row in rows:
-            # Convertiamo l'oggetto Row di SQLite in un dizionario Python
-            problem = dict(row)
-            
-            # Convertiamo le stringhe JSON di tags e solution_moves in liste Python
-            problem['solution_moves'] = json.loads(problem['solution_moves'])
-            problem['tags'] = json.loads(problem['tags'])
-            
-            problems.append(problem)
+            p = dict(row)
+            # Decodifica JSON
+            p['solution_moves'] = json.loads(p['solution_moves'])
+            p['tags'] = json.loads(p['tags'])
+            problems.append(p)
             
         return problems
         
@@ -195,6 +196,28 @@ def get_problems_for_review():
     finally:
         conn.close()
 
+
+def update_problem_list_only(problem_id, new_list_name):
+    """Aggiorna solo il campo custom_list di un problema."""
+    conn = create_connection()
+    if conn is None: return False
+    
+    # Se la stringa è vuota, salviamo NULL
+    if not new_list_name or new_list_name.strip() == "":
+        new_list_name = None
+    else:
+        new_list_name = new_list_name.strip()
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE problems SET custom_list = ? WHERE id = ?", (new_list_name, problem_id))
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Errore aggiornamento lista rapido: {e}")
+        return False
+    finally:
+        conn.close()
 
 # --- Esempio di Utilizzo della Funzione ---
 

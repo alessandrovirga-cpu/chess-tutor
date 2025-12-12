@@ -123,17 +123,38 @@ def logout():
 
 # --- ROTTE DELL'APP (ORA PROTETTE) ---
 
-@app.route('/')
-@login_required  # <--- AGGIUNGI QUESTO A TUTTE LE ROTTE PROTETTE
+@app.route('/', methods=['GET', 'POST'])
+@login_required
 def index():
-    ready_problems = db_manager.get_problems_for_review()
-    num_ready = len(ready_problems)
-    return render_template('index.html', num_ready=num_ready)
+    # 1. Gestione cambio lista (se viene dal form)
+    if request.method == 'POST':
+        selected_list = request.form.get('active_list')
+        session['active_list'] = selected_list # Salva la scelta nella sessione
+    
+    # 2. Recupera la scelta attuale (default: "Tutti")
+    current_list_filter = session.get('active_list', 'Tutti')
 
+    # 3. Recupera i problemi filtrati
+    ready_problems = db_manager.get_problems_for_review(current_list_filter)
+    
+    # 4. Recupera tutte le liste disponibili per il menu a tendina
+    available_lists = db_manager.get_unique_lists()
+
+    return render_template('index.html', 
+                           num_ready=len(ready_problems), 
+                           available_lists=available_lists,
+                           current_filter=current_list_filter)
+
+# --- Rotta Review (Usa il filtro) ---
 @app.route('/review')
-@login_required # <--- PROTEZIONE
+@login_required
 def review_problem():
-    ready_problems = db_manager.get_problems_for_review()
+    # Recupera il filtro dalla sessione
+    current_list_filter = session.get('active_list', 'Tutti')
+    
+    # Chiede al DB i problemi di quella lista
+    ready_problems = db_manager.get_problems_for_review(current_list_filter)
+    
     if not ready_problems:
         return redirect(url_for('index'))
     problem = ready_problems[0]
@@ -158,6 +179,7 @@ def new_problem():
         year = request.form.get('game_year') or None
         tournament = request.form.get('tournament') or None
         winner = request.form.get('winner')
+        custom_list = request.form.get('custom_list') or None
 
         # Conversione tipi
         if year: year = int(year)
@@ -173,7 +195,7 @@ def new_problem():
             new_id = db_manager.insert_new_problem(
                 fen, solution_list, tags_list,
                 white_player=white, black_player=black,
-                game_year=year, tournament=tournament, winner=winner
+                game_year=year, tournament=tournament, winner=winner, custom_list=custom_list
             )
             if new_id:
                 return redirect(url_for('index'))
@@ -196,6 +218,7 @@ def new_problem_graphical():
         year = request.form.get('game_year') or None
         tournament = request.form.get('tournament') or None
         winner = request.form.get('winner') # Arriva come stringa "0" o "1" o None
+        custom_list = request.form.get('custom_list') or None
         
         # Convertiamo anno e vincitore in interi se presenti
         if year: year = int(year)
@@ -210,7 +233,7 @@ def new_problem_graphical():
             new_id = db_manager.insert_new_problem(
                 fen, solution_list, tags_list,
                 white_player=white, black_player=black,
-                game_year=year, tournament=tournament, winner=winner
+                game_year=year, tournament=tournament, winner=winner, custom_list=custom_list
             )
             if new_id:
                 return redirect(url_for('index'))
@@ -228,11 +251,23 @@ def rate_problem(problem_id):
             return redirect(url_for('review_problem'))
     return "Errore.", 400
 
+# --- Modifica questa rotta esistente ---
 @app.route('/list')
-@login_required # <--- PROTEZIONE
+@login_required
 def problems_list():
     all_problems = db_manager.get_all_problems()
-    return render_template('problems_list.html', problems=all_problems)
+    # Recuperiamo anche le liste per il menu a tendina (datalist)
+    available_lists = db_manager.get_unique_lists() 
+    return render_template('problems_list.html', problems=all_problems, available_lists=available_lists)
+
+# --- Aggiungi questa NUOVA rotta ---
+@app.route('/quick_update_list/<int:problem_id>', methods=['POST'])
+@login_required
+def quick_update_list(problem_id):
+    new_list = request.form.get('custom_list')
+    db_manager.update_problem_list_only(problem_id, new_list)
+    # Ricarica la stessa pagina per vedere le modifiche
+    return redirect(url_for('problems_list'))
 
 @app.template_filter('format_date')
 def format_date(timestamp):

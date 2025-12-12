@@ -11,7 +11,6 @@
         body { font-family: sans-serif; padding: 20px; background-color: #f9f9f9; }
         h1 { text-align: center; color: #333; }
         
-        /* Contenitore tabella scrollabile per mobile */
         .table-container {
             overflow-x: auto;
             background: white;
@@ -19,27 +18,20 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
         th, td { border-bottom: 1px solid #ddd; padding: 12px; text-align: center; vertical-align: middle; }
         th { background-color: #f2f2f2; color: #555; text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px; }
         tr:hover { background-color: #f5f5f5; }
 
         .mini-board { width: 140px; margin: 0 auto; } 
 
-        /* Stili per i Dati Partita */
         .match-info { text-align: left; font-size: 0.9em; line-height: 1.4; }
         .players { font-weight: bold; color: #333; }
         .meta { color: #777; font-size: 0.9em; }
-        .result-badge {
-            display: inline-block;
-            margin-top: 4px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: bold;
-        }
-        .res-white { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; } /* Verde chiaro */
-        .res-black { background-color: #eceff1; color: #37474f; border: 1px solid #cfd8dc; } /* Grigio scuro */
+        
+        .result-badge { display: inline-block; margin-top: 4px; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .res-white { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .res-black { background-color: #eceff1; color: #37474f; border: 1px solid #cfd8dc; }
         
         .sm2-badge { font-weight: bold; padding: 4px 8px; border-radius: 12px; font-size: 0.85em; color: white; }
         .diff-easy { background-color: #4CAF50; }
@@ -47,6 +39,25 @@
         .diff-hard { background-color: #f44336; }
 
         .back-link { display: block; text-align: center; margin-top: 20px; text-decoration: none; color: #2196F3; font-weight: bold; }
+
+        /* Stile per il form di modifica rapida lista */
+        .quick-list-form { display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .quick-list-input {
+            width: 120px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .btn-save-mini {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0;
+            color: #2196F3;
+        }
+        .btn-save-mini:hover { color: #0b7dda; transform: scale(1.1); }
     </style>
 </head>
 <body>
@@ -57,9 +68,9 @@
             <thead>
                 <tr>
                     <th style="width: 160px;">Posizione</th>
-                    <th>Dettagli Partita</th> <th>Stato Apprendimento</th>
-                    <th>Ultima Revisione</th>
-                    <th>Azioni</th> </tr>
+                    <th>Dettagli Partita</th>
+                    <th>Lista (Modifica)</th> <th>Stato Apprendimento</th>
+                    <th>Azioni</th>
                 </tr>
             </thead>
             <tbody>
@@ -94,6 +105,14 @@
                             <small style="color: #999;">Tags: {{ p.tags_json }}</small>
                         {% endif %}
                     </td>
+
+                    <td>
+                        <form action="{{ url_for('quick_update_list', problem_id=p.id) }}" method="POST" class="quick-list-form">
+                            <input class="quick-list-input" list="lists_datalist" name="custom_list" 
+                                   value="{{ p.custom_list if p.custom_list else '' }}" placeholder="Nessuna">
+                            <button type="submit" class="btn-save-mini" title="Salva Lista">💾</button>
+                        </form>
+                    </td>
                     
                     <td>
                         {% if p.ease_factor >= 2.6 %}
@@ -113,26 +132,22 @@
                     </td>
                     
                     <td>
-                        {{ p.last_reviewed | format_date }}
-                    </td>
-                    <td>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <a href="{{ url_for('edit_problem', problem_id=p.id) }}" 
-                           style="background-color: #2196F3; color: white; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 0.9em;">
-                           ✏️ Modifica
-                        </a>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <a href="{{ url_for('edit_problem', problem_id=p.id) }}" 
+                               style="background-color: #2196F3; color: white; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 0.9em;">
+                               ✏️ Modifica
+                            </a>
 
-                        <form action="{{ url_for('delete_problem_route', problem_id=p.id) }}" method="POST" 
-                              onsubmit="return confirm('Sei sicuro di voler ELIMINARE definitivamente questo problema? Questa azione non può essere annullata.');">
-                            <button type="submit" 
-                                    style="background-color: #f44336; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 0.9em;">
-                                🗑️ Elimina
-                            </button>
-                        </form>
-                    </div>
-                </td>
+                            <form action="{{ url_for('delete_problem_route', problem_id=p.id) }}" method="POST" 
+                                  onsubmit="return confirm('Sei sicuro di voler ELIMINARE definitivamente questo problema?');">
+                                <button type="submit" 
+                                        style="background-color: #f44336; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 0.9em;">
+                                    🗑️ Elimina
+                                </button>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
-                
                 {% endfor %}
             </tbody>
         </table>
@@ -140,8 +155,13 @@
 
     <a href="{{ url_for('index') }}" class="back-link">⬅ Torna alla Dashboard</a>
 
+    <datalist id="lists_datalist">
+        {% for lst in available_lists %}
+            <option value="{{ lst }}">
+        {% endfor %}
+    </datalist>
+
     <script>
-        // Inizializzazione massiva delle scacchiere
         var config = {
             showNotation: false,
             draggable: false, 

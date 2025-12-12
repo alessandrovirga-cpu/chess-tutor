@@ -5,14 +5,35 @@
     <title>Tutor Scacchistico SM-2</title>
 </head>
 <body>
-    <h1>Dashboard Ripetizione Spaziata</h1>
-    <p>Problemi pronti per la revisione: <strong>{{ num_ready }}</strong></p>
+    <div class="dashboard-container">
+        <h1>Dashboard Allenamento</h1>
+        
+        <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <form method="POST" action="{{ url_for('index') }}">
+                <label><strong>📚 Cosa vuoi studiare oggi?</strong></label>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <select name="active_list" style="flex: 1; padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="Tutti" {% if current_filter == 'Tutti' %}selected{% endif %}>Tutte le liste</option>
+                        {% for lst in available_lists %}
+                            <option value="{{ lst }}" {% if current_filter == lst %}selected{% endif %}>{{ lst }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" style="width: auto; margin: 0; background-color: #2196F3;">Applica</button>
+                </div>
+            </form>
+        </div>
 
-    {% if num_ready > 0 %}
-        <p><a href="{{ url_for('review_problem') }}">INIZIA LA REVISIONE</a></p>
-    {% else %}
-        <p>Non ci sono problemi pronti. Torna più tardi! 😊</p>
-    {% endif %}
+        <div class="status-box {{ 'status-green' if num_ready == 0 else 'status-orange' }}">
+            {% if num_ready > 0 %}
+                <h2>Hai {{ num_ready }} problemi da rivedere {% if current_filter != 'Tutti' %} in "{{ current_filter }}"{% endif %}!</h2>
+                <p>È il momento di allenarsi.</p>
+                <a href="{{ url_for('review_problem') }}" class="btn">Inizia Revisione</a>
+            {% else %}
+                <h2>Tutto pulito!</h2>
+                <p>Non ci sono problemi in scadenza {% if current_filter != 'Tutti' %} nella lista "{{ current_filter }}"{% endif %}.</p>
+                <small>Puoi cambiare lista o aggiungerne di nuovi.</small>
+            {% endif %}
+        </div>
     
     <hr>
     <p>Scegli come vuoi inserire un nuovo problema:</p>

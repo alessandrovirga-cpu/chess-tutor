@@ -105,6 +105,8 @@
 
                 <input type="hidden" id="fen" name="fen">
 
+
+
                 <hr>
                 <details>
                     <summary style="cursor:pointer; font-weight:bold; color:#555;">Dati Storici Partita (Opzionale)</summary>
@@ -129,10 +131,14 @@
                                     <option value="1">Nero (1)</option>
                                 </select>
                             </div>
+                                <label>Lista / Categoria:</label>
+                                <input type="text" name="custom_list" placeholder="Es. Capablanca, Finali di Torre..." list="existing-lists">
+                                <datalist id="existing-lists">
                         </div>
 
                         <label>Torneo:</label>
                         <input type="text" name="tournament" placeholder="Campionato del Mondo">
+                        </datalist>
                     </div>
                 </details>
                 <hr>
