@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Modifica Problema #{{ problem.id }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f4; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        label { display: block; margin-top: 15px; font-weight: bold; }
+        input[type="text"], input[type="number"], textarea, select { 
+            width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+        }
+        .btn-save { width: 100%; padding: 12px; background-color: #2196F3; color: white; border: none; margin-top: 20px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .back-link { display: block; text-align: center; margin-top: 15px; color: #666; }
+        .readonly-field { background-color: #e9e9e9; color: #555; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Modifica Problema #{{ problem.id }}</h1>
+        
+        <form method="POST">
+            <label>FEN (Non modificabile):</label>
+            <input type="text" class="readonly-field" value="{{ problem.fen }}" readonly>
+            
+            <label>Tags (separati da virgola):</label>
+            <textarea name="tags" rows="2">{{ problem.tags_str }}</textarea>
+
+            <h3>Dati Storici</h3>
+            <label>Giocatori:</label>
+            <div style="display:flex; gap:10px;">
+                <input type="text" name="white_player" placeholder="Bianco" value="{{ problem.white_player or '' }}">
+                <input type="text" name="black_player" placeholder="Nero" value="{{ problem.black_player or '' }}">
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>Anno:</label>
+                    <input type="number" name="game_year" value="{{ problem.game_year or '' }}">
+                </div>
+                <div style="flex:1;">
+                    <label>Vincitore:</label>
+                    <select name="winner">
+                        <option value="">-- Seleziona --</option>
+                        <option value="0" {% if problem.winner == 0 %}selected{% endif %}>Bianco (0)</option>
+                        <option value="1" {% if problem.winner == 1 %}selected{% endif %}>Nero (1)</option>
+                    </select>
+                </div>
+            </div>
+
+            <label>Torneo:</label>
+            <input type="text" name="tournament" value="{{ problem.tournament or '' }}">
+
+            <button type="submit" class="btn-save">💾 Salva Modifiche</button>
+        </form>
+        
+        <a href="{{ url_for('problems_list') }}" class="back-link">Annulla</a>
+    </div>
+</body>
+</html>

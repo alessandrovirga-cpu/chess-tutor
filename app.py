@@ -241,6 +241,60 @@ def format_date(timestamp):
         return datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M')
     return "Mai"
 
+
+# --- Rotta: Modifica Problema ---
+@app.route('/edit/<int:problem_id>', methods=['GET', 'POST'])
+@login_required
+def edit_problem(problem_id):
+    problem = db_manager.get_problem_by_id(problem_id)
+    if not problem:
+        return "Problema non trovato", 404
+
+    if request.method == 'POST':
+        # Recupera i dati dal form
+        tags_str = request.form.get('tags')
+        white = request.form.get('white_player') or None
+        black = request.form.get('black_player') or None
+        year = request.form.get('game_year') or None
+        tournament = request.form.get('tournament') or None
+        winner = request.form.get('winner')
+
+        # Conversioni
+        if year: year = int(year)
+        if winner is not None and winner != "": winner = int(winner)
+        else: winner = None
+        
+        tags_list = [t.strip() for t in tags_str.split(',') if t.strip()]
+
+        # Aggiorna nel DB
+        success = db_manager.update_problem_details(
+            problem_id, tags_list, white, black, year, tournament, winner
+        )
+        
+        if success:
+            flash('Problema aggiornato con successo!', 'info')
+            return redirect(url_for('problems_list'))
+        else:
+            flash('Errore durante l\'aggiornamento.', 'error')
+
+    # Prepara i tag per la visualizzazione (da lista JSON a stringa separata da virgole)
+    import json
+    tags_list = json.loads(problem['tags']) if problem['tags'] else []
+    problem['tags_str'] = ", ".join(tags_list)
+    
+    return render_template('edit_problem.html', problem=problem)
+
+# --- Rotta: Elimina Problema ---
+@app.route('/delete/<int:problem_id>', methods=['POST'])
+@login_required
+def delete_problem_route(problem_id):
+    success = db_manager.delete_problem(problem_id)
+    if success:
+        flash('Problema eliminato definitivamente.', 'info')
+    else:
+        flash('Errore durante l\'eliminazione.', 'error')
+    return redirect(url_for('problems_list'))
+
 if __name__ == '__main__':
     conn = db_manager.create_connection()
     if conn:

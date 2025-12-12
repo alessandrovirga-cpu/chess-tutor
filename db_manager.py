@@ -75,6 +75,59 @@ def insert_new_problem(fen, solution_moves, tags,
         conn.close()
 
 
+def get_problem_by_id(problem_id):
+    """Recupera un singolo problema dal database tramite ID."""
+    conn = create_connection()
+    if conn is None: return None
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM problems WHERE id = ?", (problem_id,))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+    finally:
+        conn.close()
+
+def update_problem_details(problem_id, tags, white, black, year, tournament, winner):
+    """Aggiorna i metadati (tag e dati storici) di un problema esistente."""
+    conn = create_connection()
+    if conn is None: return False
+    
+    tags_json = json.dumps(tags)
+    
+    sql = """
+    UPDATE problems 
+    SET tags = ?, white_player = ?, black_player = ?, game_year = ?, tournament = ?, winner = ?
+    WHERE id = ?
+    """
+    try:
+        cursor = conn.cursor()
+        cursor.execute(sql, (tags_json, white, black, year, tournament, winner, problem_id))
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Errore aggiornamento: {e}")
+        return False
+    finally:
+        conn.close()
+
+def delete_problem(problem_id):
+    """Elimina definitivamente un problema dal database."""
+    conn = create_connection()
+    if conn is None: return False
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM problems WHERE id = ?", (problem_id,))
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Errore eliminazione: {e}")
+        return False
+    finally:
+        conn.close()
+
+
 # --- Esempio di Utilizzo della Funzione ---
 
 if __name__ == '__main__':

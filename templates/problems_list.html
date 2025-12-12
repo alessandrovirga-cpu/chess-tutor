@@ -59,6 +59,7 @@
                     <th style="width: 160px;">Posizione</th>
                     <th>Dettagli Partita</th> <th>Stato Apprendimento</th>
                     <th>Ultima Revisione</th>
+                    <th>Azioni</th> </tr>
                 </tr>
             </thead>
             <tbody>
@@ -114,7 +115,24 @@
                     <td>
                         {{ p.last_reviewed | format_date }}
                     </td>
+                    <td>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <a href="{{ url_for('edit_problem', problem_id=p.id) }}" 
+                           style="background-color: #2196F3; color: white; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 0.9em;">
+                           ✏️ Modifica
+                        </a>
+
+                        <form action="{{ url_for('delete_problem_route', problem_id=p.id) }}" method="POST" 
+                              onsubmit="return confirm('Sei sicuro di voler ELIMINARE definitivamente questo problema? Questa azione non può essere annullata.');">
+                            <button type="submit" 
+                                    style="background-color: #f44336; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 0.9em;">
+                                🗑️ Elimina
+                            </button>
+                        </form>
+                    </div>
+                </td>
                 </tr>
+                
                 {% endfor %}
             </tbody>
         </table>
