@@ -215,8 +215,14 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-.env
-__pycache__/
-*.pyc
-venv/
+# SQLite database file for chess tutor application
 chess_tutor.db
+
+# --- File di Sistema e Temporanei ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- File temporanei SQLite (oltre al DB principale) ---
+*.db-journal
+*.db-wal
